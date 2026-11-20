@@ -5,21 +5,20 @@ import { act, cleanup, renderHook } from '@testing-library/react';
 import { CarritoProvider } from '../context/CarritoProvider';
 // db real, para leer precios y stock de los productos
 import db from '../data/db';
-// simularApi: fetch falso; productosPrueba: lo que "devolvería" el backend
-import { productosPrueba, simularApi } from './ayudas';
 // useCarrito: hook que entrega lo que comparte el CarritoProvider
 import useCarrito from '../hooks/useCarrito';
+import { productosEjemplo } from './ayudas';
 
-// Pruebas del carrito real, con los productos que "devuelve" una API simulada
+// Pruebas del carrito real, usando los datos de db
 // Aquí no hay mocks: se prueba el provider de verdad
 describe('CarritoProvider (estado compartido del carrito)', () => {
   // Antes de cada prueba parte con todo limpio
-  // (localStorage vacío = carrito vacío; los productos se cargan desde la API simulada)
-  beforeEach(async () => {
+  // (localStorage vacío = carrito vacío; db.reiniciar = productos de seed.js)
+  beforeEach(() => {
     localStorage.clear();
     db.reiniciar();
-    simularApi({ 'GET /api/v1/productos': productosPrueba });
-    await db.cargar('productos');
+    // Catálogo ya cargado (como si hubiera llegado de GET /productos)
+    db.establecer('productos', productosEjemplo);
   });
   // Después de cada prueba deja todo como estaba
   afterEach(() => {

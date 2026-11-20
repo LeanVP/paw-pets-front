@@ -64,6 +64,14 @@ describe('Componente Header', () => {
   });
 
   // El botón hamburguesa debe abrir el menú
+  it('el vendedor también ve el enlace al panel', () => {
+    renderizar(<Header />, {
+      auth: { usuario: { nombre: 'Valentina', rol: 'vendedor' } },
+      carrito,
+    });
+    expect(screen.getByRole('link', { name: 'Admin' })).toBeTruthy();
+  });
+
   it('el botón del menú móvil alterna el estado abierto/cerrado', () => {
     renderizar(<Header />, { auth: { usuario: null }, carrito });
     // Busca el botón por su aria-label

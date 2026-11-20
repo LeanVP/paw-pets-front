@@ -1,7 +1,7 @@
 // De Testing Library: cleanup (limpia), fireEvent (simula acciones) y screen (busca en pantalla)
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 // regiones: lista real de regiones y comunas, para elegir valores válidos
-import { regiones } from '../data/contenido';
+import { regiones } from '../data/seed';
 // La página que se prueba
 import Registro from '../pages/Registro';
 // Función para dibujar con router y contextos falsos
@@ -37,10 +37,10 @@ describe('Página Registro', () => {
   }
 
   // Con datos buenos debe llamar a registrar sin "confirmar"
-  it('con datos válidos llama a registrar (mock de autenticación)', () => {
+  it('con datos válidos llama a registrar (mock de autenticación)', async () => {
     // Registro falso que siempre funciona
     // .and.returnValue hace que el espía devuelva ese objeto (como si creara al usuario)
-    const registrar = jasmine.createSpy('registrar').and.returnValue({ id: 99 });
+    const registrar = jasmine.createSpy('registrar').and.resolveTo({ id: 99 });
     renderizar(<Registro />, { auth: { registrar } });
     llenarYEnviar();
     // Comprueba que registrar recibió exactamente estos datos (sin el campo confirmar)
@@ -54,19 +54,19 @@ describe('Página Registro', () => {
       comuna,
     });
     // Comprueba que no apareció la alerta de error
+    await waitFor(() => expect(registrar).toHaveBeenCalled());
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
   // Si el correo ya existe, sale la alerta roja
   it('con un correo ya existente muestra el error', async () => {
     // Registro falso que falla (devuelve null)
-    const registrar = jasmine.createSpy('registrar').and.returnValue(null);
+    const registrar = jasmine.createSpy('registrar').and.resolveTo(null);
     renderizar(<Registro />, { auth: { registrar } });
     llenarYEnviar();
     // Comprueba que sí se intentó registrar
     expect(registrar).toHaveBeenCalled();
     // Comprueba que aparece la alerta de correo repetido
-    // La respuesta llega de forma asíncrona, por eso findByRole espera a que aparezca
     expect((await screen.findByRole('alert')).textContent).toContain('Ya existe una cuenta');
   });
 });

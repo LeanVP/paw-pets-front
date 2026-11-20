@@ -1,56 +1,71 @@
-// De Testing Library: cleanup (limpia), fireEvent (simula acciones) y screen (busca en pantalla)
-import { cleanup, fireEvent, screen } from '@testing-library/react';
-// La página que se prueba
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { Route, Routes } from 'react-router-dom';
 import Login from '../pages/Login';
-// Función para dibujar con router y contextos falsos
 import { renderizar } from './ayudas';
 
-// Pruebas de la página de login
-// La sesión es falsa (mock): se controla qué devuelve iniciarSesion
 describe('Página Login', () => {
-  // Limpia la pantalla después de cada prueba
   afterEach(cleanup);
 
-  // Escribe un valor en el campo con esa etiqueta
-  // fireEvent.change simula que el usuario escribió ese texto
   const escribir = (etiqueta, valor) =>
     fireEvent.change(screen.getByLabelText(etiqueta), { target: { value: valor } });
 
-  // Lo que se escribe debe quedar en el input
+  function enviar(correo, clave) {
+    escribir('Correo electrónico', correo);
+    escribir('Contraseña', clave);
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
+  }
+
+  // Login dentro de rutas, para comprobar a dónde redirige
+  const conRutas = (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/admin" element={<p>Panel</p>} />
+      <Route path="/" element={<p>Tienda</p>} />
+    </Routes>
+  );
+
   it('estado del formulario: el campo refleja lo que escribe el usuario', () => {
-    // iniciarSesion falso que no hace nada (devuelve null)
     renderizar(<Login />, { auth: { iniciarSesion: () => null } });
     escribir('Correo electrónico', 'ana@correo.cl');
-    // Comprueba que el input muestra lo escrito (formulario controlado con useState)
     expect(screen.getByLabelText('Correo electrónico').value).toBe('ana@correo.cl');
   });
 
-  // Con campos vacíos salen dos errores y no intenta entrar
   it('muestra errores de validación y no llama a iniciarSesion con campos vacíos', () => {
-    // Espía para saber si se llamó a iniciarSesion
     const iniciarSesion = jasmine.createSpy('iniciarSesion');
     renderizar(<Login />, { auth: { iniciarSesion } });
-    // Aprieta Entrar sin escribir nada
     fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
-    // Comprueba que sale el error en los dos campos (correo y contraseña)
     expect(screen.getAllByText('Este campo es obligatorio.')).toHaveSize(2);
-    // Comprueba que no se intentó iniciar sesión
     expect(iniciarSesion).not.toHaveBeenCalled();
   });
 
-  // Si el login falla, debe salir la alerta roja
   it('con credenciales incorrectas muestra la alerta de error (mock de autenticación)', async () => {
-    // Login falso que siempre falla (devuelve null)
-    const iniciarSesion = jasmine.createSpy('iniciarSesion').and.returnValue(null);
+    const iniciarSesion = jasmine.createSpy('iniciarSesion').and.resolveTo(null);
     renderizar(<Login />, { auth: { iniciarSesion } });
-    // Escribe datos con buen formato y aprieta Entrar
-    escribir('Correo electrónico', 'ana@correo.cl');
-    escribir('Contraseña', 'mala');
-    fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
-    // Comprueba que se llamó con el correo y la clave escritos
+    enviar('ana@correo.cl', 'mala');
     expect(iniciarSesion).toHaveBeenCalledWith('ana@correo.cl', 'mala');
-    // Comprueba que aparece la alerta (role="alert") con el mensaje de error
-    // La respuesta llega de forma asíncrona, por eso findByRole espera a que aparezca
-    expect((await screen.findByRole('alert')).textContent).toContain('incorrectos');
+    const alerta = await screen.findByRole('alert');
+    expect(alerta.textContent).toContain('incorrectos');
+  });
+
+  it('si el backend no responde muestra el mensaje del servidor', async () => {
+    const iniciarSesion = jasmine
+      .createSpy('iniciarSesion')
+      .and.rejectWith(new Error('No se pudo conectar con el servidor.'));
+    renderizar(<Login />, { auth: { iniciarSesion } });
+    enviar('ana@correo.cl', 'clave');
+    expect((await screen.findByRole('alert')).textContent).toContain('No se pudo conectar');
+  });
+
+  it('un administrador o vendedor va al panel; un cliente a la tienda', async () => {
+    const vendedor = jasmine.createSpy().and.resolveTo({ rol: 'vendedor' });
+    renderizar(conRutas, { ruta: '/login', auth: { iniciarSesion: vendedor } });
+    enviar('vendedor@pawpets.cl', 'Vendedor123');
+    await waitFor(() => expect(screen.getByText('Panel')).toBeTruthy());
+    cleanup();
+
+    const cliente = jasmine.createSpy().and.resolveTo({ rol: 'cliente' });
+    renderizar(conRutas, { ruta: '/login', auth: { iniciarSesion: cliente } });
+    enviar('camila@correo.cl', 'Cliente123');
+    await waitFor(() => expect(screen.getByText('Tienda')).toBeTruthy());
   });
 });

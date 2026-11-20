@@ -1,87 +1,70 @@
-// db: el almacén de datos conectado al backend, que es lo que se prueba
+// db: almacén del frontend conectado a la API REST
 import db from '../data/db';
-// simularApi: fetch falso para probar sin backend
-import { simularApi } from './ayudas';
+import { productosEjemplo, simularApi } from './ayudas';
 
-// Pruebas del almacén de datos (db) con CRUD contra una API simulada
+// Todas las pruebas usan fetch simulado: no se necesita el backend encendido
 describe('Almacén de datos (db) conectado a la API', () => {
-  // Deja la memoria vacía antes y después de cada prueba
   beforeEach(() => db.reiniciar());
   afterEach(() => db.reiniciar());
 
-  const categorias = [
-    { id: 1, nombre: 'Perros', imagen: '' },
-    { id: 2, nombre: 'Gatos', imagen: '' },
-  ];
-
-  // Antes de cargar no hay datos y los nombres inválidos fallan
-  it('listar entrega una lista vacía antes de cargar y rechaza colecciones inexistentes', () => {
-    expect(db.listar('productos')).toEqual([]);
+  it('cargar hace GET a la API y guarda la lista; una colección inexistente da error', async () => {
+    const fetch = simularApi({ 'GET /productos': productosEjemplo });
+    await db.cargar('productos');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(db.listar('productos').length).toBe(3);
+    expect(db.estado('productos').cargado).toBeTrue();
     expect(() => db.listar('inexistente')).toThrowError(/desconocida/);
   });
 
-  // cargar hace GET a la ruta correcta y guarda el resultado
-  it('cargar trae la colección con GET', async () => {
-    const fetchFalso = simularApi({ 'GET /api/v1/categorias': categorias });
-    await db.cargar('categorias');
-    expect(fetchFalso.calls.mostRecent().args[0]).toBe('/api/v1/categorias');
-    expect(db.listar('categorias')).toHaveSize(2);
-    expect(db.obtener('categorias', 2).nombre).toBe('Gatos');
+  it('no repite la petición si la colección ya está cargada (salvo recargar)', async () => {
+    const fetch = simularApi({ 'GET /productos': productosEjemplo });
+    await db.cargar('productos');
+    await db.cargar('productos');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await db.recargar('productos');
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
-  // crear envía POST y agrega el registro que devolvió el backend (con su id)
-  it('crear hace POST y agrega el registro con el id que asignó el backend', async () => {
-    simularApi({
-      'GET /api/v1/categorias': categorias,
-      'POST /api/v1/categorias': { id: 3, nombre: 'Aves', imagen: '' },
-    });
-    await db.cargar('categorias');
-    const nueva = await db.crear('categorias', { nombre: 'Aves', imagen: '' });
-    expect(nueva.id).toBe(3);
-    expect(db.listar('categorias')).toHaveSize(3);
+  it('si el backend falla guarda el mensaje de error', async () => {
+    simularApi({ 'GET /productos': () => [{ mensaje: 'Ocurrió un error' }, 500] });
+    await db.cargar('productos');
+    expect(db.estado('productos').error).toBe('Ocurrió un error');
+    expect(db.estado('productos').cargando).toBeFalse();
   });
 
-  // actualizar envía PUT y reemplaza el registro
-  it('actualizar hace PUT y reemplaza el registro', async () => {
-    simularApi({
-      'GET /api/v1/categorias': categorias,
-      'PUT /api/v1/categorias/1': { id: 1, nombre: 'Canes', imagen: '' },
+  it('crear hace POST y agrega la respuesta del backend (con su id) a la lista', async () => {
+    db.establecer('categorias', [{ id: 1, nombre: 'Perros', imagen: '/p.jpg' }]);
+    const fetch = simularApi({
+      'POST /categorias': (cuerpo) => [{ ...cuerpo, id: 2 }, 201],
     });
-    await db.cargar('categorias');
-    await db.actualizar('categorias', 1, { nombre: 'Canes', imagen: '' });
-    expect(db.obtener('categorias', 1).nombre).toBe('Canes');
-    expect(db.obtener('categorias', 2).nombre).toBe('Gatos');
+    const nueva = await db.crear('categorias', { nombre: 'Aves', imagen: '/a.jpg' });
+    expect(nueva.id).toBe(2);
+    expect(db.obtener('categorias', 2).nombre).toBe('Aves');
+    expect(fetch.calls.mostRecent().args[1].method).toBe('POST');
   });
 
-  // eliminar envía DELETE y saca el registro
-  it('eliminar hace DELETE y saca el registro', async () => {
+  it('actualizar (PUT) y eliminar (DELETE) cambian solo el registro indicado', async () => {
+    db.establecer('productos', productosEjemplo);
     simularApi({
-      'GET /api/v1/categorias': categorias,
-      'DELETE /api/v1/categorias/1': { estado: 204 },
+      'PUT /productos/1': (cuerpo) => [{ ...cuerpo, id: 1 }],
+      'DELETE /productos/2': () => [null, 204],
     });
-    await db.cargar('categorias');
-    await db.eliminar('categorias', 1);
-    expect(db.obtener('categorias', 1)).toBeUndefined();
-    expect(db.listar('categorias')).toHaveSize(1);
+    await db.actualizar('productos', 1, { ...productosEjemplo[0], stock: 99 });
+    expect(db.obtener('productos', 1).stock).toBe(99);
+    expect(db.obtener('productos', 5).stock).not.toBe(99);
+    await db.eliminar('productos', 2);
+    expect(db.obtener('productos', 2)).toBeUndefined();
   });
 
-  // Si el backend rechaza la operación, el error llega y los datos no cambian
-  it('si el backend responde con error, lanza el mensaje y no modifica los datos', async () => {
-    simularApi({
-      'GET /api/v1/categorias': categorias,
-      'DELETE /api/v1/categorias/1': {
-        estado: 409,
-        cuerpo: { mensaje: 'No se puede eliminar la categoría: tiene productos asociados.' },
-      },
-    });
-    await db.cargar('categorias');
-    let mensaje = '';
-    try {
-      await db.eliminar('categorias', 1);
-    } catch (error) {
-      mensaje = error.message;
-    }
-    expect(mensaje).toContain('tiene productos');
-    expect(db.listar('categorias')).toHaveSize(2);
+  it('avisa a los suscriptores en cada cambio (mock) y olvida los datos privados al cambiar de sesión', () => {
+    const aviso = jasmine.createSpy('aviso');
+    const cancelar = db.suscribir(aviso);
+    db.establecer('boletas', [{ id: 1 }]);
+    expect(aviso).toHaveBeenCalledTimes(1);
+    db.olvidarPrivadas();
+    expect(db.listar('boletas')).toEqual([]);
+    cancelar();
+    db.establecer('boletas', [{ id: 2 }]);
+    expect(aviso).toHaveBeenCalledTimes(2);
   });
 });

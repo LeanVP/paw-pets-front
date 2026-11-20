@@ -1,6 +1,7 @@
 // De Testing Library: cleanup (limpia), fireEvent (simula acciones) y screen (busca en pantalla)
 import { cleanup, fireEvent, screen } from '@testing-library/react';
 // La página que se prueba
+import db from '../data/db';
 import Carrito from '../pages/Carrito';
 // Producto de ejemplo y función para dibujar con contextos falsos
 import { productoEjemplo, renderizar } from './ayudas';
@@ -9,7 +10,12 @@ import { productoEjemplo, renderizar } from './ayudas';
 // Aquí el carrito es falso (mock): no se usa el CarritoProvider real
 describe('Página Carrito', () => {
   // Limpia la pantalla después de cada prueba
-  afterEach(cleanup);
+  // La página espera el catálogo del backend: se deja cargado de antemano
+  beforeEach(() => db.establecer('productos', [productoEjemplo]));
+  afterEach(() => {
+    cleanup();
+    db.reiniciar();
+  });
 
   // Carrito falso con espías para ver qué se llama
   // Recibe las líneas y calcula el total sumando los subtotales
