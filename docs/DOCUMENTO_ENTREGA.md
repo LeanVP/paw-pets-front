@@ -125,7 +125,7 @@ flujos completos en el navegador con los 3 roles, **0 errores** en la consola y 
 | Requisito | Estado |
 |---|:-:|
 | Proyecto Spring Boot con dependencias de BD y seguridad | ✅ |
-| Conexión a la base de datos | ✅ (verificado con MongoDB local; **conexión a Atlas pendiente**, ver sección 6) |
+| Conexión a la base de datos | ✅ MongoDB Atlas (cluster0.iriwpdx, base pawpets) |
 | Entidades y relaciones de la Figura 1 | ✅ |
 | Repositorios y servicios | ✅ |
 | Lógica de negocio encapsulada y testeada | ✅ |
@@ -169,7 +169,7 @@ flujos completos en el navegador con los 3 roles, **0 errores** en la consola y 
 | Pestaña Network | ✅ todas 200/201/204; preflight CORS 200 |
 | Consola del navegador | ✅ sin errores ni advertencias |
 | Móvil (390 px) y escritorio (1920 px) | ✅ sin desplazamiento horizontal; tablas desplazables dentro de su tarjeta |
-| Conexión a MongoDB Atlas | ⏳ **Pendiente**: las pruebas se hicieron con un MongoDB 8.0 local en Docker (mismo driver y misma configuración, solo cambia la URI del `.env`). Falta repetir el arranque con la URI de Atlas |
+| Conexión a MongoDB Atlas | ✅ Backend conectado a Atlas: datos iniciales cargados, 65/65 casos de la API y compra completa desde el sitio (boleta #3) |
 
 **Problemas encontrados y corregidos durante las pruebas**
 
