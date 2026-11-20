@@ -10,6 +10,10 @@ import useCarrito from '../hooks/useCarrito';
 import { precioCLP } from '../utils/formato';
 // Logo: componente con la huellita y el nombre de la tienda
 import Logo from './Logo';
+// Icono: íconos de Google Material Symbols
+import Icono from './Icono';
+// Roles que pueden entrar al panel (admin y vendedor)
+import { ROLES_PANEL } from '../utils/roles';
 
 // Links del menú: cada uno es [ruta, texto que se muestra]
 // Se define fuera del componente porque no cambia nunca
@@ -118,6 +122,7 @@ export default function Header() {
             />
             {/* type="submit" hace que el botón envíe el formulario */}
             <button className="btn btn-outline-light" type="submit">
+              <Icono nombre="search" />
               Buscar
             </button>
           </form>
@@ -129,15 +134,22 @@ export default function Header() {
               to="/carrito"
               onClick={() => setAbierto(false)}
             >
-              🛒 {precioCLP(total)}
+              <Icono nombre="shopping_cart" />
+              <span className="visually-hidden">Carrito: </span>
+              {precioCLP(total)}
             </Link>
             {/* Si hay usuario conectado muestra saludo y salir; si no, login y registro */}
             {usuario ? (
               <>
-                {/* Botón del panel, para admin y vendedor (el cliente no lo ve) */}
-                {['admin', 'vendedor'].includes(usuario.rol) && (
-                  <Link className="btn btn-outline-light" to="/admin">
-                    {usuario.rol === 'admin' ? 'Admin' : 'Panel'}
+                {/* Botón Admin, solo para los roles del panel (admin y vendedor) */}
+                {ROLES_PANEL.includes(usuario.rol) && (
+                  <Link
+                    className="btn btn-outline-light"
+                    to="/admin"
+                    onClick={() => setAbierto(false)}
+                  >
+                    <Icono nombre="admin_panel_settings" />
+                    Admin
                   </Link>
                 )}
                 {/* Saludo con el nombre del usuario */}
@@ -152,6 +164,7 @@ export default function Header() {
                   className="btn btn-outline-light"
                   onClick={cerrarSesion}
                 >
+                  <Icono nombre="logout" />
                   Salir
                 </button>
               </>
@@ -163,6 +176,7 @@ export default function Header() {
                   to="/login"
                   onClick={() => setAbierto(false)}
                 >
+                  <Icono nombre="login" />
                   Iniciar sesión
                 </Link>
                 {/* Link para crear una cuenta nueva */}
@@ -171,6 +185,7 @@ export default function Header() {
                   to="/registro"
                   onClick={() => setAbierto(false)}
                 >
+                  <Icono nombre="person_add" />
                   Crear cuenta
                 </Link>
               </>

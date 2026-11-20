@@ -1,36 +1,49 @@
 /**
- * Configuración de las entidades administrables. Cada una define sus columnas,
- * campos del formulario y reglas de validación; las vistas son genéricas.
+ * Configuración de las entidades administrables. Cada una define:
+ * - roles: quién la ve en el panel (el vendedor solo ve productos, en modo lectura);
+ * - columnas de la tabla, campos del formulario y reglas de validación.
+ * Las vistas AdminEntidad y AdminFormulario son genéricas y usan esta configuración.
  */
-// Este archivo no es una vista: solo guarda datos que leen AdminEntidad,
-// AdminFormulario y Perfil. Así una misma página sirve para las tres entidades.
-// Link: se usa en el botón Historial de cada usuario
 import { Link } from 'react-router-dom';
-// precioCLP: formato de pesos para la columna Precio
+import { EtiquetaEstado } from '../../components/Estados';
+import Icono from '../../components/Icono';
 import { precioCLP } from '../../utils/formato';
-// Reglas de validación de los formularios del admin
-import { correo, minimo, numeroNoNegativo, requerido } from '../../utils/validaciones';
+import { esCritico } from '../../utils/productos';
+import { ROLES } from '../../utils/roles';
+import {
+  correo,
+  minimo,
+  minimoSiHay,
+  numeroNoNegativo,
+  requerido,
+} from '../../utils/validaciones';
 
-// Objeto con una clave por entidad; la clave es el mismo nombre de la colección en db
-// y el mismo :entidad de la URL (por ejemplo /admin/productos)
 export const ENTIDADES = {
-  // Configuración de los productos
   productos: {
-    // Título de la página y nombre en singular para "Nuevo producto" / "Editar producto"
     titulo: 'Productos',
     singular: 'producto',
-    // Columnas de la tabla: [campo, título, formato opcional]
+    // Para los textos: "Nuevo producto", "Detalle del producto"
+    nuevo: 'Nuevo',
+    del: 'del',
+    icono: 'inventory_2',
+    roles: ['admin', 'vendedor'],
     columnas: [
       ['id', 'ID'],
       ['nombre', 'Nombre'],
       ['precio', 'Precio', precioCLP],
-      ['stock', 'Stock'],
+      // El stock crítico se marca con color + ícono + texto
+      [
+        'stock',
+        'Stock',
+        (stock, fila) =>
+          esCritico(fila) ? (
+            <EtiquetaEstado tipo="alerta">{stock} · crítico</EtiquetaEstado>
+          ) : (
+            String(stock)
+          ),
+      ],
     ],
-    // Valores por defecto al crear un producto nuevo
     inicial: { precioOferta: 0, destacado: false },
-    // Campos del formulario; recibe categorías para el select
-    // Cada campo: nombre = clave del dato, etiqueta = texto visible, tipo = control,
-    // numerico = true si hay que pasarlo a número antes de guardar
     campos: (categorias) => [
       { nombre: 'nombre', etiqueta: 'Nombre' },
       {
@@ -38,7 +51,6 @@ export const ENTIDADES = {
         etiqueta: 'Categoría',
         tipo: 'select',
         numerico: true,
-        // Convierte cada categoría en una opción del select
         opciones: categorias.map((c) => ({ valor: c.id, texto: c.nombre })),
       },
       { nombre: 'precio', etiqueta: 'Precio', tipo: 'number', numerico: true },
@@ -52,85 +64,81 @@ export const ENTIDADES = {
       { nombre: 'imagen', etiqueta: 'URL de la imagen (opcional)' },
       { nombre: 'descripcion', etiqueta: 'Descripción', tipo: 'textarea' },
     ],
-    // Validaciones de cada campo del producto
-    // imagen no tiene reglas porque es opcional
-    reglas: {
+    reglas: () => ({
       nombre: [requerido],
       categoriaId: [requerido],
       precio: [numeroNoNegativo],
       precioOferta: [numeroNoNegativo],
       stock: [numeroNoNegativo],
       descripcion: [requerido],
-    },
-    // Botón extra arriba para ver productos con poco stock
-    // Formato: [ruta, texto del botón]
-    enlaces: [['/admin/productos/criticos', 'Productos críticos']],
+    }),
+    enlaces: [['/admin/productos/criticos', 'Productos críticos', 'warning']],
   },
-  // Configuración de las categorías
   categorias: {
     titulo: 'Categorías',
     singular: 'categoría',
-    // Columnas de la tabla: solo id y nombre
+    nuevo: 'Nueva',
+    del: 'de la',
+    icono: 'category',
+    roles: ['admin'],
     columnas: [
       ['id', 'ID'],
       ['nombre', 'Nombre'],
     ],
-    // No necesita valores por defecto
     inicial: {},
-    // Campos del formulario; no usa las categorías, por eso no recibe nada
     campos: () => [
       { nombre: 'nombre', etiqueta: 'Nombre' },
       { nombre: 'imagen', etiqueta: 'URL de la imagen' },
     ],
-    // Nombre e imagen son obligatorios
-    reglas: { nombre: [requerido], imagen: [requerido] },
+    reglas: () => ({ nombre: [requerido], imagen: [requerido] }),
   },
-  // Configuración de los usuarios
   usuarios: {
     titulo: 'Usuarios',
     singular: 'usuario',
-    // Columnas de la tabla (la clave no se muestra)
+    nuevo: 'Nuevo',
+    del: 'del',
+    icono: 'group',
+    roles: ['admin'],
     columnas: [
       ['id', 'ID'],
       ['nombre', 'Nombre'],
       ['correo', 'Correo'],
-      ['rol', 'Rol'],
+      ['rol', 'Rol', (rol) => <EtiquetaEstado icono="badge">{rol}</EtiquetaEstado>],
     ],
-    // Los usuarios nuevos parten como clientes
     inicial: { rol: 'cliente' },
-    // Campos del formulario; también los usa la página Perfil
-    campos: () => [
+    // editando = true: la contraseña es opcional (vacía = mantener la actual)
+    campos: (_categorias, editando) => [
       { nombre: 'nombre', etiqueta: 'Nombre' },
       { nombre: 'apellidos', etiqueta: 'Apellidos' },
       { nombre: 'correo', etiqueta: 'Correo electrónico', tipo: 'email' },
-      { nombre: 'clave', etiqueta: 'Contraseña', tipo: 'password' },
+      {
+        nombre: 'clave',
+        etiqueta: 'Contraseña',
+        tipo: 'password',
+        ayuda: editando
+          ? 'Déjala vacía para mantener la contraseña actual.'
+          : 'Mínimo 6 caracteres.',
+      },
       {
         nombre: 'rol',
         etiqueta: 'Rol',
         tipo: 'select',
-        // Hay tres roles: admin, vendedor y cliente
-        opciones: [
-          { valor: 'admin', texto: 'admin' },
-          { valor: 'vendedor', texto: 'vendedor' },
-          { valor: 'cliente', texto: 'cliente' },
-        ],
+        opciones: ROLES.map((r) => ({ valor: r, texto: r })),
       },
     ],
-    // Validaciones; la contraseña pide mínimo 6 letras
-    reglas: {
+    reglas: (editando) => ({
       nombre: [requerido],
       apellidos: [requerido],
       correo: [requerido, correo],
-      clave: [requerido, minimo(6)],
+      clave: editando ? [minimoSiHay(6)] : [requerido, minimo(6)],
       rol: [requerido],
-    },
-    // Acción extra por fila: el historial de compras del usuario.
-    // Es una función: AdminEntidad la llama con cada fila y dibuja el link que devuelve
+    }),
     accionesFila: (fila) => (
       <Link
         to={`/admin/usuarios/${fila.id}/historial`}
         className="btn btn-sm btn-outline-secondary"
       >
+        <Icono nombre="history" />
         Historial
       </Link>
     ),

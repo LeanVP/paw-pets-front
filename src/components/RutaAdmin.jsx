@@ -2,19 +2,19 @@
 import { Navigate, Outlet } from 'react-router-dom';
 // useAuth: hook propio para saber quién tiene la sesión iniciada
 import useAuth from '../hooks/useAuth';
+// Roles que pueden entrar al panel (Anexo 1: el cliente solo accede a la tienda)
+import { ROLES_PANEL } from '../utils/roles';
 
-/** Protege rutas según el rol. Sin sesión va al login; con sesión pero sin permiso va a /admin. */
-// Prop: roles = roles que pueden entrar (por defecto, solo admin)
-// En App.jsx envuelve a las rutas /admin (admin y vendedor) y a las exclusivas del admin
+/**
+ * Guardián de rutas por rol. Recibe los roles permitidos.
+ * - Sin sesión: va al login.
+ * - Cliente (no es del panel): vuelve a la tienda.
+ * - Vendedor en una sección solo de admin: vuelve al inicio del panel.
+ * Esto mejora la experiencia, pero la seguridad real la impone el backend (401/403).
+ */
 export default function RutaAdmin({ roles = ['admin'] }) {
-  // Usuario que tiene la sesión iniciada (o null si no hay nadie)
   const { usuario } = useAuth();
-  // Sin sesión, o un cliente: al login
-  if (!usuario || !['admin', 'vendedor'].includes(usuario.rol)) {
-    return <Navigate to="/login" replace />;
-  }
-  // Con sesión de personal pero sin permiso para esta ruta: de vuelta al inicio del panel
-  if (!roles.includes(usuario.rol)) return <Navigate to="/admin" replace />;
-  // Tiene permiso: muestra la página pedida
-  return <Outlet />;
+  if (!usuario) return <Navigate to="/login" replace />;
+  if (roles.includes(usuario.rol)) return <Outlet />;
+  return <Navigate to={ROLES_PANEL.includes(usuario.rol) ? '/admin' : '/'} replace />;
 }

@@ -1,8 +1,9 @@
 // De react-router: BrowserRouter (activa la navegación con la URL del navegador),
 // Routes (agrupa las rutas) y Route (une una URL con una página)
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
-// RutaAdmin: deja pasar solo a los roles indicados (admin y/o vendedor)
+// RutaAdmin: deja pasar a cada sección solo a los roles permitidos
 import RutaAdmin from './components/RutaAdmin';
+import { ROLES_PANEL } from './utils/roles';
 // Providers: comparten la sesión y el carrito con toda la app
 import { AuthProvider } from './context/AuthProvider';
 import { CarritoProvider } from './context/CarritoProvider';
@@ -12,8 +13,8 @@ import TiendaLayout from './layouts/TiendaLayout';
 // Páginas del panel de administración (src/pages/admin)
 import AdminEntidad from './pages/admin/AdminEntidad';
 import AdminFormulario from './pages/admin/AdminFormulario';
-import AdminInicio from './pages/admin/AdminInicio';
 import Boleta from './pages/admin/Boleta';
+import Dashboard from './pages/admin/Dashboard';
 import HistorialCompras from './pages/admin/HistorialCompras';
 import Ordenes from './pages/admin/Ordenes';
 import Perfil from './pages/admin/Perfil';
@@ -79,36 +80,32 @@ export default function App() {
               <Route path="compra/error/:id" element={<PagoResultado exito={false} />} />
             </Route>
 
-            {/* Panel de administración: entran admin y vendedor; cualquier otro va al login */}
-            <Route path="admin" element={<RutaAdmin roles={['admin', 'vendedor']} />}>
+            {/* Panel de administración: entran admin y vendedor (el cliente solo accede a la tienda) */}
+            {/* RutaAdmin revisa el rol: si está permitido muestra la hija (Outlet); si no, redirige */}
+            <Route path="admin" element={<RutaAdmin roles={ROLES_PANEL} />}>
               {/* Todas usan el menú lateral del admin */}
               <Route element={<AdminLayout />}>
-                {/* /admin: el admin ve el Dashboard y el vendedor pasa a Productos */}
-                <Route index element={<AdminInicio />} />
-
-                {/* Rutas que ve también el vendedor, solo lectura */}
+                {/* index = "/admin": el admin ve el Dashboard; el vendedor es enviado a Productos */}
+                <Route index element={<Dashboard />} />
+                {/* Órdenes y boletas: admin y vendedor */}
                 <Route path="ordenes" element={<Ordenes />} />
-                {/* Boleta de una orden: /admin/ordenes/5 */}
                 <Route path="ordenes/:id" element={<Boleta />} />
-                {/* Lista de productos: AdminEntidad oculta crear, editar y eliminar al vendedor */}
-                {/* Esta ruta fija gana sobre :entidad, por eso recibe la entidad por prop */}
-                <Route path="productos" element={<AdminEntidad entidad="productos" />} />
-
-                {/* Rutas exclusivas del administrador: RutaAdmin con roles=['admin'] */}
+                <Route path="productos/criticos" element={<ProductosCriticos />} />
+                {/* Secciones exclusivas del administrador */}
                 <Route element={<RutaAdmin roles={['admin']} />}>
-                  <Route path="productos/criticos" element={<ProductosCriticos />} />
                   {/* Compras de un usuario: /admin/usuarios/2/historial */}
                   <Route path="usuarios/:id/historial" element={<HistorialCompras />} />
                   <Route path="reportes" element={<Reportes />} />
                   <Route path="perfil" element={<Perfil />} />
-                  {/* Rutas generales para productos, categorías y usuarios */}
-                  {/* :entidad puede ser productos, categorias o usuarios (ver entidades.jsx) */}
-                  <Route path=":entidad" element={<AdminEntidad />} />
                   {/* Formulario vacío para crear: /admin/productos/nuevo */}
                   <Route path=":entidad/nuevo" element={<AdminFormulario />} />
-                  {/* Mismo formulario para editar: /admin/productos/3 */}
-                  <Route path=":entidad/:id" element={<AdminFormulario />} />
                 </Route>
+                {/* Rutas generales para productos, categorías y usuarios */}
+                {/* :entidad puede ser productos, categorias o usuarios (ver entidades.jsx) */}
+                {/* Cada entidad define qué roles la ven: el vendedor solo ve productos, en modo lectura */}
+                <Route path=":entidad" element={<AdminEntidad />} />
+                {/* Editar (admin) o ver detalle (vendedor): /admin/productos/3 */}
+                <Route path=":entidad/:id" element={<AdminFormulario />} />
               </Route>
             </Route>
           </Routes>

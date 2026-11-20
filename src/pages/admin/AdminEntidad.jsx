@@ -1,146 +1,128 @@
-// useState: hook de React para guardar datos que cambian (estado)
 import { useState } from 'react';
-// Link: ir a otra página sin recargar; useParams: leer :entidad de la URL
-import { Link, useParams } from 'react-router-dom';
-// db: almacén conectado al backend, aquí se usa para eliminar registros
+import { Link, Navigate, useParams } from 'react-router-dom';
+import { AlertaError, EstadoCarga, EstadoVacio } from '../../components/Estados';
+import Icono from '../../components/Icono';
 import db from '../../data/db';
-// useAuth: hook propio para saber el rol del usuario (admin o vendedor)
 import useAuth from '../../hooks/useAuth';
-// useColeccion: hook propio que trae una colección del backend y se actualiza sola
 import useColeccion from '../../hooks/useColeccion';
-// ENTIDADES: configuración de productos, categorías y usuarios (entidades.jsx)
 import { ENTIDADES } from './entidades';
 
-/** Listado de una entidad (productos, categorías o usuarios) con Crear, Editar y Eliminar. */
-// Ruta: /admin/:entidad. Una sola página sirve para las tres entidades
-// Prop opcional: App.jsx la usa en /admin/productos, ruta que también puede ver el vendedor
-export default function AdminEntidad({ entidad: entidadFija }) {
-  // Saca de la URL qué entidad mostrar (o usa la que llega por prop)
-  // Ejemplo: en /admin/productos, entidad = 'productos'
-  const params = useParams();
-  const entidad = entidadFija ?? params.entidad;
-  // Busca la configuración de esa entidad
+/**
+ * Listado de una entidad (productos, categorías o usuarios).
+ * Admin: Nuevo, Editar y Eliminar. Vendedor: solo "Ver detalle" (lectura).
+ */
+export default function AdminEntidad() {
+  const { entidad } = useParams();
+  const { usuario } = useAuth();
   const config = ENTIDADES[entidad];
-  // Si no existe la entidad, muestra un aviso
   if (!config) return <p className="alert alert-warning">Sección no encontrada.</p>;
-  // La tabla va en otro componente porque los hooks (useColeccion) no se pueden
-  // llamar después de un return; así primero se revisa que la entidad exista
-  return <Listado entidad={entidad} config={config} />;
+  // Una entidad que el rol no puede ver: vuelve al inicio del panel
+  if (!config.roles.includes(usuario.rol)) return <Navigate to="/admin" replace />;
+  return (
+    <EstadoCarga colecciones={[entidad]}>
+      <Listado entidad={entidad} config={config} esAdmin={usuario.rol === 'admin'} />
+    </EstadoCarga>
+  );
 }
 
-// Tabla con los registros de la entidad y sus botones
-// Props: entidad = colección, config = cómo mostrarla
-function Listado({ entidad, config }) {
-  // Trae todos los registros de la entidad
-  // Si se elimina uno, db avisa y la tabla se actualiza sola
+function Listado({ entidad, config, esAdmin }) {
   const filas = useColeccion(entidad);
-  // Solo el admin puede crear, editar y eliminar; el vendedor únicamente consulta
-  const { usuario } = useAuth();
-  const puedeEditar = usuario.rol === 'admin';
-  // Mensaje de error del backend (por ejemplo, categoría con productos)
-  const [error, setError] = useState('');
+  const [error, setError] = useState(null);
+  const [eliminando, setEliminando] = useState(null);
 
-  // Elimina en el backend; si no se puede, muestra el motivo
+  // DELETE en el backend; si lo rechaza (por ejemplo, categoría con productos) muestra el motivo
   async function eliminar(id) {
-    setError('');
+    setError(null);
+    setEliminando(id);
     try {
       await db.eliminar(entidad, id);
     } catch (e) {
       setError(e.message);
+    } finally {
+      setEliminando(null);
     }
   }
 
   return (
     <>
-      {/* Encabezado con el título y los botones de arriba */}
-      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <h1 className="h3 mb-0">{config.titulo}</h1>
-        <div className="d-flex gap-2">
-          {/* Links extra, solo si la entidad los tiene */}
-          {/* ?. evita un error si config.enlaces no existe (categorías y usuarios no tienen) */}
-          {puedeEditar && config.enlaces?.map(([ruta, texto]) => (
+      <div className="encabezado-pagina">
+        <div>
+          <h1 className="h3 mb-1">{config.titulo}</h1>
+          <p className="text-secondary mb-0">
+            {filas.length} {filas.length === 1 ? 'registro' : 'registros'}
+            {!esAdmin && ' · modo lectura'}
+          </p>
+        </div>
+        <div className="d-flex flex-wrap gap-2">
+          {config.enlaces?.map(([ruta, texto, icono]) => (
             <Link key={ruta} to={ruta} className="btn btn-outline-dark">
+              <Icono nombre={icono} />
               {texto}
             </Link>
           ))}
-          {/* Botón para crear un registro nuevo */}
-          {/* Ejemplo: /admin/productos/nuevo abre AdminFormulario vacío */}
-          {puedeEditar && (
+          {esAdmin && (
             <Link to={`/admin/${entidad}/nuevo`} className="btn btn-primary">
-              Nuevo {config.singular}
+              <Icono nombre="add" />
+              {config.nuevo} {config.singular}
             </Link>
           )}
         </div>
       </div>
-      {/* Error que devolvió el backend, si lo hubo */}
-      {error && (
-        <p className="alert alert-danger" role="alert">
-          {error}
-        </p>
-      )}
-      {/* Tabla con todos los registros */}
-      <div className="table-responsive">
-        <table className="table align-middle">
-          <thead>
-            <tr>
-              {/* Un título de columna por cada columna configurada */}
-              {config.columnas.map(([campo, etiqueta]) => (
-                <th scope="col" key={campo}>
-                  {etiqueta}
-                </th>
-              ))}
-              <th scope="col">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {/* Una fila por cada registro */}
-            {filas.map((fila) => (
-              <tr key={fila.id}>
-                {/* Cada celda usa su formato, o String si no tiene */}
-                {/* [campo, , formato] salta el 2do valor (el título), que aquí no se usa */}
-                {/* Ejemplo: el precio usa precioCLP; el nombre usa String */}
-                {config.columnas.map(([campo, , formato = String]) => (
-                  <td key={campo}>{formato(fila[campo])}</td>
+      <AlertaError mensaje={error} />
+      {filas.length === 0 ? (
+        <EstadoVacio icono={config.icono}>Aún no hay {config.titulo.toLowerCase()}.</EstadoVacio>
+      ) : (
+        <div className="card tabla-card">
+          <div className="table-responsive">
+            <table className="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  {config.columnas.map(([campo, etiqueta]) => (
+                    <th scope="col" key={campo}>
+                      {etiqueta}
+                    </th>
+                  ))}
+                  <th scope="col" className="text-end">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filas.map((fila) => (
+                  <tr key={fila.id}>
+                    {config.columnas.map(([campo, , formato = String]) => (
+                      <td key={campo}>{formato(fila[campo], fila)}</td>
+                    ))}
+                    <td>
+                      <div className="d-flex flex-wrap gap-1 justify-content-end">
+                        <Link
+                          to={`/admin/${entidad}/${fila.id}`}
+                          className="btn btn-sm btn-outline-primary"
+                        >
+                          <Icono nombre={esAdmin ? 'edit' : 'visibility'} />
+                          {esAdmin ? 'Editar' : 'Ver detalle'}
+                        </Link>
+                        {esAdmin && config.accionesFila?.(fila)}
+                        {esAdmin && (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-danger"
+                            disabled={eliminando === fila.id}
+                            onClick={() => eliminar(fila.id)}
+                          >
+                            <Icono nombre="delete" />
+                            Eliminar
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
                 ))}
-                <td className="d-flex flex-wrap gap-1">
-                  {puedeEditar ? (
-                    <>
-                      {/* Botón para editar este registro */}
-                      {/* Ejemplo: /admin/productos/3 abre AdminFormulario con el producto 3 */}
-                      <Link
-                        to={`/admin/${entidad}/${fila.id}`}
-                        className="btn btn-sm btn-outline-primary"
-                      >
-                        Editar
-                      </Link>
-                      {/* Botones extra de la fila, si la entidad tiene */}
-                      {/* ?.() solo llama a la función si existe (usuarios tiene el botón Historial) */}
-                      {config.accionesFila?.(fila)}
-                      {/* Botón para borrar este registro */}
-                      {/* eliminar() llama al backend; si lo borra, la tabla se redibuja sin esa fila */}
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-outline-danger"
-                        onClick={() => eliminar(fila.id)}
-                      >
-                        Eliminar
-                      </button>
-                    </>
-                  ) : (
-                    // El vendedor solo ve el detalle del producto (la página pública del producto)
-                    <Link
-                      to={`/productos/${fila.id}`}
-                      className="btn btn-sm btn-outline-primary"
-                    >
-                      Ver detalle
-                    </Link>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </>
   );
 }

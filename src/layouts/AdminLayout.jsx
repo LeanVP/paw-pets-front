@@ -1,65 +1,78 @@
-// De react-router: Link (link normal), NavLink (marca el link activo)
-// y Outlet (lugar donde se dibuja la página hija)
-import { Link, NavLink, Outlet } from 'react-router-dom';
-// Logo: componente con la huellita y el nombre de la tienda
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { EtiquetaEstado } from '../components/Estados';
+import Icono from '../components/Icono';
 import Logo from '../components/Logo';
-// useAuth: hook propio para usar la sesión (aquí, para cerrarla)
 import useAuth from '../hooks/useAuth';
 
-// Secciones del menú del admin: [ruta, texto, roles que la ven]
-// Productos, Categorías y Usuarios usan la ruta general /admin/:entidad de App.jsx
+// [ruta, etiqueta, ícono Material Symbols, roles que la ven]
 const SECCIONES = [
-  ['/admin', 'Dashboard', ['admin']],
-  ['/admin/ordenes', 'Órdenes', ['admin', 'vendedor']],
-  ['/admin/productos', 'Productos', ['admin', 'vendedor']],
-  ['/admin/categorias', 'Categorías', ['admin']],
-  ['/admin/usuarios', 'Usuarios', ['admin']],
-  ['/admin/reportes', 'Reportes', ['admin']],
-  ['/admin/perfil', 'Perfil', ['admin']],
+  ['/admin', 'Dashboard', 'dashboard', ['admin']],
+  ['/admin/ordenes', 'Órdenes', 'receipt_long', ['admin', 'vendedor']],
+  ['/admin/productos', 'Productos', 'inventory_2', ['admin', 'vendedor']],
+  ['/admin/categorias', 'Categorías', 'category', ['admin']],
+  ['/admin/usuarios', 'Usuarios', 'group', ['admin']],
+  ['/admin/reportes', 'Reportes', 'bar_chart', ['admin']],
+  ['/admin/perfil', 'Perfil', 'person', ['admin']],
 ];
 
-/** Panel de administración: menú lateral (apilado en móvil) y contenido. */
+/**
+ * Panel de administración: menú lateral (apilado en móvil), barra superior y contenido.
+ * El menú se filtra por rol: el vendedor solo ve Órdenes y Productos (Anexo 1).
+ */
 export default function AdminLayout() {
-  // Función para cerrar la sesión
   const { usuario, cerrarSesion } = useAuth();
-  // container-fluid ocupa todo el ancho de la pantalla
+  const { pathname } = useLocation();
+  const secciones = SECCIONES.filter(([, , , roles]) => roles.includes(usuario.rol));
+  // Sección actual: la ruta más larga que coincide con la URL (para la barra superior)
+  const actual = [...SECCIONES]
+    .sort((a, b) => b[0].length - a[0].length)
+    .find(([ruta]) => pathname === ruta || pathname.startsWith(`${ruta}/`));
+
   return (
     <div className="container-fluid">
       <div className="row">
-        {/* Menú lateral del admin */}
-        {/* col-md-3 col-lg-2: angosto al lado en pantallas medianas; arriba a lo ancho en celular */}
         <aside className="col-md-3 col-lg-2 admin-menu py-3">
-          <div className="mb-3 text-white">
+          <Link to={secciones[0][0]} className="d-block mb-3 text-decoration-none">
             <Logo />
-          </div>
-          {/* flex-md-column: los links van uno debajo del otro desde pantallas medianas */}
+          </Link>
           <nav className="nav nav-pills flex-md-column gap-1" aria-label="Administración">
-            {/* Un link por sección; Dashboard solo se marca en /admin */}
-            {/* Sin "end", el link /admin quedaría marcado en todas las páginas del admin */}
-            {/* filter deja solo las secciones permitidas para el rol: el vendedor no ve las demás */}
-            {SECCIONES.filter(([, , roles]) => roles.includes(usuario.rol)).map(
-              ([ruta, etiqueta]) => (
-                <NavLink key={ruta} to={ruta} end={ruta === '/admin'} className="nav-link">
-                  {etiqueta}
-                </NavLink>
-              ),
-            )}
-            {/* Botón para volver a la tienda */}
-            <Link to="/" className="btn btn-dark mt-md-4">
+            {secciones.map(([ruta, etiqueta, icono]) => (
+              <NavLink key={ruta} to={ruta} end={ruta === '/admin'} className="nav-link">
+                <Icono nombre={icono} />
+                {etiqueta}
+              </NavLink>
+            ))}
+          </nav>
+          <div className="admin-menu-pie">
+            <Link to="/" className="btn btn-dark">
+              <Icono nombre="storefront" />
               Tienda
             </Link>
-            {/* Cierra la sesión y vuelve al inicio */}
-            {/* Al hacer clic se llama a cerrarSesion y el link lleva a "/" */}
             <Link to="/" className="btn btn-danger" onClick={cerrarSesion}>
+              <Icono nombre="logout" />
               Cerrar sesión
             </Link>
-          </nav>
+          </div>
         </aside>
-        {/* Aquí se muestra la página del admin elegida */}
-        {/* Outlet se reemplaza por Dashboard, Ordenes, Reportes, etc. según la URL */}
-        <main className="col-md-9 col-lg-10 py-4">
-          <Outlet />
-        </main>
+        <div className="col-md-9 col-lg-10 px-0">
+          <header className="admin-barra">
+            <p className="admin-barra-ruta mb-0">
+              <Icono nombre={actual?.[2] ?? 'dashboard'} />
+              {actual?.[1] ?? 'Panel'}
+            </p>
+            <div className="d-flex align-items-center gap-2">
+              <span className="small">
+                {usuario.nombre} {usuario.apellidos}
+              </span>
+              <EtiquetaEstado tipo="info" icono="badge">
+                {usuario.rol}
+              </EtiquetaEstado>
+            </div>
+          </header>
+          <main className="admin-contenido">
+            <Outlet />
+          </main>
+        </div>
       </div>
     </div>
   );
