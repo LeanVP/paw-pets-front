@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 // precioCLP: da formato de pesos chilenos a un número
 import { precioCLP } from '../utils/formato';
+// Icono: íconos de Google Material Symbols
+import Icono from './Icono';
 
 /**
  * Tarjeta de un producto. Recibe sus datos y la acción de agregar por props;
@@ -28,7 +30,14 @@ export default function Producto({
 
   // Lo que se dibuja: una tarjeta (card) de Bootstrap
   return (
-    <article className="card h-100 shadow-sm producto-card">
+    <article className="card h-100 producto-card">
+      {/* Etiqueta de oferta sobre la foto: ícono + texto (no solo color) */}
+      {enOferta && (
+        <span className="producto-oferta">
+          <Icono nombre="sell" />
+          Oferta
+        </span>
+      )}
       {/* Muestra la imagen si existe y no falló; si no, un cuadro de reemplazo */}
       {/* imagen?.trim() es falso si no hay imagen o si es un texto vacío */}
       {/* onError se ejecuta si la imagen no carga: cambia el estado y React muestra el reemplazo */}
@@ -41,7 +50,10 @@ export default function Producto({
           onError={() => setImagenFallo(true)}
         />
       ) : (
-        <div className="producto-imagen producto-placeholder">Imagen no disponible</div>
+        <div className="producto-imagen producto-placeholder">
+          <Icono nombre="hide_image" />
+          <span>Imagen no disponible</span>
+        </div>
       )}
       {/* Cuerpo de la tarjeta en columna, para dejar el botón siempre abajo (mt-auto) */}
       <div className="card-body d-flex flex-column">
@@ -52,7 +64,7 @@ export default function Producto({
           </Link>
         </h3>
         {/* Precios: si está en oferta, muestra el precio normal tachado y el de oferta */}
-        <p className="mb-3">
+        <p className="mb-3 producto-precio">
           {/* Precio normal tachado: solo aparece si enOferta es true */}
           {enOferta && (
             <span className="text-decoration-line-through text-secondary me-2">
@@ -70,6 +82,7 @@ export default function Producto({
           disabled={stock === 0}
           onClick={() => onAgregar(id)}
         >
+          <Icono nombre={stock === 0 ? 'remove_shopping_cart' : 'add_shopping_cart'} />
           {stock === 0 ? 'Sin stock' : 'Agregar al carrito'}
         </button>
       </div>

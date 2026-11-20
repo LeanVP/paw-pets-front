@@ -1,5 +1,5 @@
-// regiones: objeto con cada región y su lista de comunas (data/contenido.js)
-import { regiones } from '../data/contenido';
+// regiones: objeto con cada región y su lista de comunas (data/seed.js)
+import { regiones } from '../data/seed';
 // CampoFormulario: componente propio que dibuja un campo con etiqueta y error
 import CampoFormulario from './CampoFormulario';
 

@@ -1,5 +1,7 @@
 // Producto: componente propio que dibuja la tarjeta de un producto
 import Producto from './Producto';
+// EstadoVacio: mensaje con ícono cuando no hay resultados
+import { EstadoVacio } from './Estados';
 
 /** Grilla responsive: 1 columna en móvil, 2 en tablet y 3-4 en escritorio. */
 // Props: productos = lista a mostrar, onAgregar = función para agregar al carrito
@@ -7,7 +9,7 @@ export default function ListaProductos({ productos, onAgregar }) {
   // Si no hay productos, muestra un aviso en vez de la grilla vacía
   if (productos.length === 0) {
     // return temprano: no sigue con el resto de la función
-    return <p className="alert alert-info">No hay productos para mostrar.</p>;
+    return <EstadoVacio icono="search_off">No hay productos para mostrar.</EstadoVacio>;
   }
   // Si hay productos, dibuja la grilla
   return (

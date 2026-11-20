@@ -185,3 +185,436 @@ body {
     min-height: 100vh;
   }
 }
+
+/* =====================================================================
+   Mejoras de diseño (entrega 3). Mismos colores de la paleta PawPets:
+   los tonos nuevos son transparencias de --paw-oscuro, --paw-primario y
+   --paw-secundario, o colores de estado que Bootstrap ya usaba.
+   ===================================================================== */
+
+/* Tokens de diseño: radios, sombras, bordes y espaciados en un solo lugar */
+:root {
+  --paw-radio: 12px;
+  --paw-radio-sm: 8px;
+  --paw-radio-pildora: 999px;
+  --paw-borde: rgba(34, 48, 60, 0.12);
+  --paw-borde-control: rgba(34, 48, 60, 0.28);
+  --paw-sombra: 0 1px 2px rgba(34, 48, 60, 0.06), 0 4px 14px rgba(34, 48, 60, 0.06);
+  --paw-sombra-hover: 0 2px 4px rgba(34, 48, 60, 0.08), 0 10px 24px rgba(34, 48, 60, 0.1);
+  --paw-foco: 0 0 0 0.25rem rgba(255, 138, 61, 0.3);
+  --paw-tinte-primario: rgba(255, 138, 61, 0.14);
+  --paw-tinte-secundario: rgba(44, 122, 123, 0.12);
+  --paw-espacio-1: 0.25rem;
+  --paw-espacio-2: 0.5rem;
+  --paw-espacio-3: 1rem;
+  --paw-espacio-4: 1.5rem;
+  /* Bootstrap usa estos valores en tarjetas, tablas y bordes */
+  --bs-border-color: var(--paw-borde);
+  --bs-border-radius: var(--paw-radio-sm);
+  --bs-border-radius-lg: var(--paw-radio);
+}
+
+/* El pie de página queda siempre abajo, aunque la página tenga poco contenido */
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+#root > main {
+  flex: 1 0 auto;
+}
+
+/* Íconos Material Symbols: mismo tamaño que el texto y alineados con él */
+.icono {
+  font-size: 1.25em;
+  line-height: 1;
+  vertical-align: -0.25em;
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
+}
+.icono-relleno {
+  font-variation-settings:
+    'FILL' 1,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
+}
+
+/* Botones con ícono: ícono y texto separados de forma pareja */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--paw-espacio-2);
+}
+.btn .icono {
+  vertical-align: 0;
+}
+/* Los botones del encabezado no se parten en dos líneas */
+.site-header .btn {
+  white-space: nowrap;
+}
+/* El buscador del encabezado muestra su texto completo */
+.site-header input[type='search'] {
+  min-width: 11rem;
+}
+
+/* Superficies: tarjetas blancas con borde suave y sombra, visibles sobre el fondo crema */
+.card {
+  --bs-card-border-color: var(--paw-borde);
+  --bs-card-border-radius: var(--paw-radio);
+  --bs-card-inner-border-radius: calc(var(--paw-radio) - 1px);
+  box-shadow: var(--paw-sombra);
+}
+.card-body {
+  padding: var(--paw-espacio-4);
+}
+
+/* Tarjetas de producto: se elevan al pasar el mouse */
+.producto-card {
+  position: relative;
+  overflow: hidden;
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+.producto-card:hover {
+  box-shadow: var(--paw-sombra-hover);
+  transform: translateY(-2px);
+}
+.producto-card .card-body {
+  padding: var(--paw-espacio-3);
+}
+.producto-precio strong {
+  font-size: 1.15rem;
+  color: var(--paw-oscuro);
+}
+/* Etiqueta "Oferta" sobre la foto */
+.producto-oferta {
+  position: absolute;
+  top: var(--paw-espacio-2);
+  left: var(--paw-espacio-2);
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--paw-espacio-1);
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--paw-radio-pildora);
+  background: var(--paw-primario);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.producto-placeholder {
+  flex-direction: column;
+  gap: var(--paw-espacio-1);
+}
+.producto-placeholder .icono {
+  font-size: 2rem;
+}
+.detalle-imagen {
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid var(--paw-borde);
+  border-radius: var(--paw-radio);
+}
+.categoria-imagen {
+  border-bottom: 1px solid var(--paw-borde);
+}
+.card:has(.categoria-imagen) {
+  transition: box-shadow 0.2s ease;
+}
+.card:has(.categoria-imagen):hover {
+  box-shadow: var(--paw-sombra-hover);
+}
+
+/* Campos con borde visible y foco con el naranjo de la marca */
+.form-control,
+.form-select {
+  border-color: var(--paw-borde-control);
+  background-color: #fff;
+}
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--paw-primario);
+  box-shadow: var(--paw-foco);
+}
+.form-control:disabled,
+.form-select:disabled {
+  background-color: rgba(34, 48, 60, 0.05);
+}
+/* Error del campo: borde rojo + ícono + texto */
+.campo-error {
+  display: flex;
+  align-items: center;
+  gap: var(--paw-espacio-1);
+}
+.campo-error .icono {
+  vertical-align: 0;
+}
+/* Foco visible para quienes navegan con teclado */
+a:focus-visible,
+.btn:focus-visible {
+  outline: 3px solid var(--paw-primario);
+  outline-offset: 2px;
+}
+
+/* Alertas con ícono a la izquierda */
+.alerta-paw {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--paw-espacio-2);
+  border-radius: var(--paw-radio-sm);
+}
+.alerta-paw > .icono {
+  font-size: 1.35rem;
+  vertical-align: 0;
+}
+
+/* Estados de una vista: cargando y vacío */
+.estado-bloque {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--paw-espacio-2);
+  padding: 2.5rem var(--paw-espacio-3);
+  color: rgba(34, 48, 60, 0.7);
+}
+.estado-vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--paw-espacio-3);
+  padding: 2.5rem var(--paw-espacio-3);
+  text-align: center;
+  background: #fff;
+  border: 1px dashed var(--paw-borde-control);
+  border-radius: var(--paw-radio);
+  color: rgba(34, 48, 60, 0.8);
+}
+.estado-vacio-icono {
+  font-size: 2.75rem;
+  color: var(--paw-secundario);
+}
+
+/* Etiquetas de estado (píldoras): siempre ícono + texto + color */
+.etiqueta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--paw-espacio-1);
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--paw-radio-pildora);
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.etiqueta .icono {
+  font-size: 1.05rem;
+  vertical-align: 0;
+}
+.etiqueta-ok {
+  background: var(--bs-success-bg-subtle);
+  color: var(--bs-success-text-emphasis);
+}
+.etiqueta-error {
+  background: var(--bs-danger-bg-subtle);
+  color: var(--bs-danger-text-emphasis);
+}
+.etiqueta-alerta {
+  background: var(--bs-warning-bg-subtle);
+  color: var(--bs-warning-text-emphasis);
+}
+.etiqueta-info {
+  background: var(--paw-tinte-secundario);
+  color: var(--paw-secundario);
+}
+.etiqueta-neutro {
+  background: rgba(34, 48, 60, 0.07);
+  color: var(--paw-oscuro);
+}
+
+/* Tablas dentro de una tarjeta, con encabezado discreto y filas que se resaltan */
+.tabla-card {
+  overflow: hidden;
+}
+.tabla-card .table {
+  --bs-table-bg: #fff;
+  --bs-table-hover-bg: var(--paw-tinte-primario);
+}
+.tabla-card .table > :not(caption) > * > * {
+  padding: 0.75rem var(--paw-espacio-3);
+}
+.tabla-card thead th {
+  background: rgba(34, 48, 60, 0.04);
+  color: rgba(34, 48, 60, 0.75);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.lista-paw {
+  box-shadow: var(--paw-sombra);
+  border-radius: var(--paw-radio);
+}
+
+/* Encabezado de una página del panel: título a la izquierda, acciones a la derecha */
+.encabezado-pagina {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--paw-espacio-3);
+  margin-bottom: var(--paw-espacio-4);
+}
+.enlace-volver {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--paw-espacio-1);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+/* Indicadores (KPI) y accesos rápidos del panel */
+.icono-caja {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--paw-radio-sm);
+  background: var(--paw-tinte-primario);
+  color: var(--paw-primario-oscuro);
+}
+.icono-caja .icono {
+  font-size: 1.5rem;
+  vertical-align: 0;
+}
+.kpi .card-body {
+  display: flex;
+  align-items: center;
+  gap: var(--paw-espacio-3);
+}
+.kpi-titulo {
+  margin: 0;
+  color: rgba(34, 48, 60, 0.7);
+  font-size: 0.9rem;
+}
+.kpi-valor {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.card-acceso {
+  transition: box-shadow 0.2s ease;
+}
+.card-acceso:hover {
+  box-shadow: var(--paw-sombra-hover);
+}
+
+/* Panel de administración: menú lateral con íconos y barra superior */
+.admin-menu .nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--paw-espacio-2);
+  border-radius: var(--paw-radio-sm);
+}
+.admin-menu .nav-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.admin-menu-pie {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--paw-espacio-2);
+  margin-top: var(--paw-espacio-3);
+}
+.admin-barra {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--paw-espacio-2);
+  padding: 0.75rem var(--paw-espacio-4);
+  background: #fff;
+  border-bottom: 1px solid var(--paw-borde);
+}
+.admin-barra-ruta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--paw-espacio-2);
+  font-weight: 600;
+}
+.admin-barra-ruta .icono {
+  color: var(--paw-primario);
+  vertical-align: 0;
+}
+.admin-contenido {
+  padding: var(--paw-espacio-4);
+}
+
+/* Resultado del pago: ícono grande + mensaje */
+.resultado-pago {
+  display: flex;
+  align-items: center;
+  gap: var(--paw-espacio-2);
+  margin-bottom: var(--paw-espacio-3);
+}
+.resultado-pago .icono {
+  font-size: 2.5rem;
+  vertical-align: 0;
+}
+.resultado-ok {
+  color: var(--bs-success);
+}
+.resultado-error {
+  color: var(--bs-danger);
+}
+
+/* Hero con esquinas iguales al resto de superficies */
+.hero {
+  border-radius: var(--paw-radio);
+}
+
+@media (min-width: 768px) {
+  /* El menú lateral queda fijo a la altura de la ventana: Tienda y Cerrar sesión siempre visibles */
+  .admin-menu {
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .admin-menu-pie {
+    flex-direction: column;
+    margin-top: auto;
+    padding-top: var(--paw-espacio-4);
+  }
+}
+
+/* Al imprimir la boleta se ocultan el menú y los botones */
+@media print {
+  .site-header,
+  .site-footer,
+  .btn {
+    display: none !important;
+  }
+  .card {
+    box-shadow: none;
+  }
+}
+
+/* Respeta a quienes prefieren menos animaciones */
+@media (prefers-reduced-motion: reduce) {
+  .producto-card,
+  .producto-card:hover {
+    transition: none;
+    transform: none;
+  }
+}
