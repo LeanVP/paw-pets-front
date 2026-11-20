@@ -1,114 +1,129 @@
-// useEffect: hook para hacer algo después de dibujar; useState: hook de estado
-import { useEffect, useState } from 'react';
-// db: almacén de datos; se vacía al cerrar sesión para no dejar datos de otro usuario
+// Hooks de React: estado, efectos y funciones estables
+import { useCallback, useEffect, useState } from 'react';
+// db: se olvidan los datos privados (usuarios, boletas) al cambiar de sesión
 import db from '../data/db';
-// api: llamadas al backend; el resto son funciones para guardar y leer la sesión
-import api, { EVENTO_SESION_EXPIRADA, guardarSesion, leerSesion } from '../services/api';
+// api: cliente REST y utilidades de la sesión guardada
+import api, {
+  borrarSesion,
+  EVENTO_SESION_EXPIRADA,
+  guardarSesion,
+  leerSesion,
+  tokenVigente,
+  vencimientoToken,
+} from '../services/api';
 // AuthContext: el contexto que este Provider llena con datos
 import { AuthContext } from './contextos';
 
-// Cada cuánto se renueva el token mientras hay sesión (15 minutos)
+/** Cada cuánto se pide un token nuevo al backend mientras la página está abierta. */
 const RENOVAR_CADA_MS = 15 * 60 * 1000;
 
-// Dice si el token guardado todavía no vence. El JWT tiene 3 partes separadas por puntos
-// y la del medio (payload) trae "exp", la fecha de vencimiento en segundos.
-// OJO: esto solo evita mostrar una sesión vencida; quien realmente valida el token es el backend.
-function vigente(sesion) {
-  if (!sesion?.token) return false;
-  try {
-    const payload = JSON.parse(
-      atob(sesion.token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')),
-    );
-    return payload.exp * 1000 > Date.now();
-  } catch {
-    return false;
-  }
-}
-
-// Lee la sesión guardada al abrir la página; si está vencida la borra
+// Sesión guardada solo si su token todavía no vence
 function sesionInicial() {
   const guardada = leerSesion();
-  if (vigente(guardada)) return guardada;
-  guardarSesion(null);
+  if (guardada && tokenVigente(guardada.token)) return guardada;
+  borrarSesion();
   return null;
 }
 
-/** Comparte con toda la app quién tiene la sesión iniciada (login real con JWT). */
-// Prop: children = toda la app que va adentro
+/**
+ * Sesión del usuario con JWT:
+ * - Persistencia: { token, usuario } en localStorage, así la sesión sobrevive a recargar (F5).
+ * - Vencimiento: al abrir la página se descarta un token vencido, y se cierra la sesión justo cuando vence.
+ * - Renovación: al abrir la página y cada 15 minutos se pide un token nuevo (POST /auth/refresh).
+ * - Si el backend responde 401 (token inválido o vencido), la sesión se cierra sola.
+ * El rol que vale es el del token firmado: cambiarlo en localStorage no da permisos en el backend.
+ */
 export function AuthProvider({ children }) {
-  // Sesión = { token, usuario }. Parte con lo guardado en localStorage: así sobrevive a recargar la página
   const [sesion, setSesion] = useState(sesionInicial);
-  const usuario = sesion?.usuario ?? null;
-  const haySesion = Boolean(sesion);
 
-  // Guarda la sesión que entregó el backend (login, registro o refresh)
-  function abrirSesion(respuesta) {
-    guardarSesion(respuesta);
-    setSesion(respuesta);
-  }
+  // Guarda la sesión y olvida los datos del usuario anterior
+  const abrirSesion = useCallback((nueva) => {
+    guardarSesion(nueva);
+    db.olvidarPrivadas();
+    setSesion(nueva);
+  }, []);
 
-  // Borra la sesión y los datos cargados
-  function cerrarSesion() {
-    guardarSesion(null);
+  const cerrarSesion = useCallback(() => {
+    borrarSesion();
+    db.olvidarPrivadas();
     setSesion(null);
-    db.reiniciar();
-  }
+  }, []);
 
-  /** Devuelve el usuario si las credenciales son correctas; null si son incorrectas. */
+  /** Devuelve el usuario si las credenciales son correctas; null si no (401). */
   async function iniciarSesion(correo, clave) {
     try {
       const respuesta = await api.post('/auth/login', { correo: correo.trim(), clave });
       abrirSesion(respuesta);
       return respuesta.usuario;
     } catch (error) {
-      // 401 = correo o clave mal; cualquier otro error (servidor caído) se informa aparte
       if (error.estado === 401) return null;
       throw error;
     }
   }
 
-  /** Crea un cliente nuevo y abre su sesión. Devuelve null si el correo ya existe. */
+  /** Crea un cliente y abre su sesión. Devuelve null si el correo ya existe (409). */
   async function registrar(datos) {
     try {
-      const respuesta = await api.post('/auth/registro', {
-        ...datos,
-        correo: datos.correo.trim(),
-      });
+      const respuesta = await api.post('/auth/registro', { ...datos, correo: datos.correo.trim() });
       abrirSesion(respuesta);
       return respuesta.usuario;
     } catch (error) {
-      // 409 = el correo ya está registrado
       if (error.estado === 409) return null;
       throw error;
     }
   }
 
-  // Pide un token nuevo (y los datos actualizados del usuario) usando el token actual
-  async function renovarSesion() {
-    abrirSesion(await api.post('/auth/refresh'));
-  }
+  /** Actualiza los datos del usuario conectado (por ejemplo, después de editar el perfil). */
+  const actualizarUsuario = useCallback((usuario) => {
+    setSesion((actual) => {
+      const nueva = { ...actual, usuario };
+      guardarSesion(nueva);
+      return nueva;
+    });
+  }, []);
 
-  // Mientras hay sesión: renueva el token al abrir la página y cada 15 minutos,
-  // y cierra la sesión si el backend avisa que el token ya no sirve (401)
+  const hayToken = Boolean(sesion?.token);
+  const token = sesion?.token;
+
+  // Renovación del token: al abrir la página y cada 15 minutos
   useEffect(() => {
-    if (!haySesion) return undefined;
-    const cerrar = () => cerrarSesion();
-    window.addEventListener(EVENTO_SESION_EXPIRADA, cerrar);
-    renovarSesion().catch(() => {});
-    const reloj = setInterval(() => renovarSesion().catch(() => {}), RENOVAR_CADA_MS);
-    return () => {
-      window.removeEventListener(EVENTO_SESION_EXPIRADA, cerrar);
-      clearInterval(reloj);
-    };
-    // Solo depende de si hay sesión o no (no de cada renovación)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [haySesion]);
+    if (!hayToken) return undefined;
+    const renovar = () =>
+      api
+        .post('/auth/refresh')
+        .then((nueva) => {
+          guardarSesion(nueva);
+          setSesion(nueva);
+        })
+        .catch(() => {}); // si falla por 401, el evento de sesión expirada cierra la sesión
+    renovar();
+    const intervalo = setInterval(renovar, RENOVAR_CADA_MS);
+    return () => clearInterval(intervalo);
+  }, [hayToken]);
 
-  // Lo que se dibuja: el Provider con los datos y, adentro, toda la app
+  // Cierra la sesión justo cuando vence el token (si no se alcanzó a renovar)
+  useEffect(() => {
+    if (!token) return undefined;
+    const restante = vencimientoToken(token) - Date.now();
+    const temporizador = setTimeout(cerrarSesion, Math.max(restante, 0));
+    return () => clearTimeout(temporizador);
+  }, [token, cerrarSesion]);
+
+  // El cliente de la API avisa cuando el backend rechaza el token (401)
+  useEffect(() => {
+    window.addEventListener(EVENTO_SESION_EXPIRADA, cerrarSesion);
+    return () => window.removeEventListener(EVENTO_SESION_EXPIRADA, cerrarSesion);
+  }, [cerrarSesion]);
+
   return (
-    // value es lo que reciben los componentes al usar useAuth()
     <AuthContext.Provider
-      value={{ usuario, iniciarSesion, registrar, cerrarSesion, renovarSesion }}
+      value={{
+        usuario: sesion?.usuario ?? null,
+        iniciarSesion,
+        registrar,
+        cerrarSesion,
+        actualizarUsuario,
+      }}
     >
       {children}
     </AuthContext.Provider>
