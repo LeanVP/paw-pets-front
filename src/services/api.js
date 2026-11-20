@@ -1,72 +1,110 @@
 /**
- * Cliente de la API REST del backend (usa fetch, como el hook del ejemplo del profesor).
- * - Todas las rutas parten en /api/v1; Vite las reenvía al backend (proxy en vite.config.js).
- * - Si hay sesión, agrega el header "Authorization: Bearer <token>" a cada petición.
- * - Si el backend responde 401 con una sesión abierta, avisa a la app para cerrarla.
+ * Cliente de la API REST del backend (único lugar del frontend que hace peticiones HTTP).
+ * - URL base desde la variable de entorno VITE_API_URL (archivo .env, ver .env.example).
+ * - Agrega el token JWT de la sesión en el header Authorization.
+ * - Convierte las respuestas de error del backend ({ estado, error, mensaje, campos }) en ErrorApi.
+ * - Si el backend responde 401 a una petición con token, avisa que la sesión expiró.
  */
 
-// Rutas base de la API (versionada)
-const BASE = '/api/v1';
-// Nombre con que se guarda la sesión en localStorage: { token, usuario }
+// import.meta.env lo completa Vite con las variables VITE_* del .env.
+// El ?. evita un error cuando el código corre fuera de Vite (pruebas con Karma).
+const URL_BASE = (import.meta.env?.VITE_API_URL ?? 'http://localhost:8080/api/v1').replace(
+  /\/$/,
+  '',
+);
+
+/** Nombre con que se guarda la sesión { token, usuario } en localStorage. */
 export const CLAVE_SESION = 'pawpets:sesion';
-// Evento que se dispara cuando el token ya no sirve
+/** Evento que avisa al AuthProvider que el backend rechazó el token. */
 export const EVENTO_SESION_EXPIRADA = 'pawpets:sesion-expirada';
 
-// Lee la sesión guardada (o null)
+/** Error de la API con el código HTTP y los errores por campo (si los hay). */
+export class ErrorApi extends Error {
+  constructor(mensaje, estado, campos = {}) {
+    super(mensaje);
+    this.estado = estado;
+    this.campos = campos;
+  }
+}
+
+// ---------- Sesión guardada en el navegador ----------
+
 export function leerSesion() {
   try {
-    return JSON.parse(localStorage.getItem(CLAVE_SESION)) ?? null;
+    return JSON.parse(localStorage.getItem(CLAVE_SESION));
   } catch {
     return null;
   }
 }
 
-// Guarda o borra la sesión
 export function guardarSesion(sesion) {
-  if (sesion) localStorage.setItem(CLAVE_SESION, JSON.stringify(sesion));
-  else localStorage.removeItem(CLAVE_SESION);
+  localStorage.setItem(CLAVE_SESION, JSON.stringify(sesion));
 }
 
-// Función base: hace la petición, convierte la respuesta a JSON y lanza un Error si algo falla
+export function borrarSesion() {
+  localStorage.removeItem(CLAVE_SESION);
+}
+
+/**
+ * Lee el vencimiento (exp) del JWT. El payload es la parte del medio del token, en base64url.
+ * Solo sirve para no usar un token muerto: la validación real (firma) la hace el backend.
+ */
+export function vencimientoToken(token) {
+  try {
+    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(payload)).exp * 1000;
+  } catch {
+    return 0;
+  }
+}
+
+export const tokenVigente = (token) => Boolean(token) && vencimientoToken(token) > Date.now();
+
+// ---------- Peticiones ----------
+
 async function pedir(metodo, ruta, cuerpo) {
-  const sesion = leerSesion();
-  const headers = {};
-  if (cuerpo !== undefined) headers['Content-Type'] = 'application/json';
-  if (sesion?.token) headers.Authorization = `Bearer ${sesion.token}`;
+  const cabeceras = {};
+  if (cuerpo !== undefined) cabeceras['Content-Type'] = 'application/json';
+  const token = leerSesion()?.token;
+  if (tokenVigente(token)) cabeceras.Authorization = `Bearer ${token}`;
 
   let respuesta;
   try {
-    respuesta = await fetch(`${BASE}${ruta}`, {
+    respuesta = await fetch(URL_BASE + ruta, {
       method: metodo,
-      headers,
+      headers: cabeceras,
       body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
     });
   } catch {
-    // fetch solo falla si no hay conexión con el servidor
-    throw new Error('No se pudo conectar con el servidor.');
+    // fetch solo falla así cuando no hay conexión con el servidor (apagado, CORS, sin red).
+    throw new ErrorApi(
+      'No se pudo conectar con el servidor. Revisa que el backend esté encendido.',
+      0,
+    );
   }
+
+  // 204 No Content (por ejemplo, al eliminar): no hay cuerpo que leer.
+  if (respuesta.status === 204) return null;
+  const datos = await respuesta.json().catch(() => null);
 
   if (!respuesta.ok) {
-    // El backend siempre responde { estado, error, mensaje, campos }
-    const datos = await respuesta.json().catch(() => ({}));
-    // 401 con sesión abierta = token vencido o inválido
-    if (respuesta.status === 401 && sesion?.token) {
+    if (respuesta.status === 401 && cabeceras.Authorization) {
       window.dispatchEvent(new Event(EVENTO_SESION_EXPIRADA));
     }
-    const error = new Error(datos.mensaje ?? `Error ${respuesta.status}`);
-    error.estado = respuesta.status;
-    throw error;
+    throw new ErrorApi(
+      datos?.mensaje ?? `Error ${respuesta.status} del servidor.`,
+      respuesta.status,
+      datos?.campos ?? {},
+    );
   }
-  // 204 No Content (DELETE) no trae cuerpo
-  return respuesta.status === 204 ? null : respuesta.json();
+  return datos;
 }
 
-// Atajos por método HTTP
 const api = {
   get: (ruta) => pedir('GET', ruta),
-  post: (ruta, cuerpo) => pedir('POST', ruta, cuerpo),
+  post: (ruta, cuerpo = {}) => pedir('POST', ruta, cuerpo),
   put: (ruta, cuerpo) => pedir('PUT', ruta, cuerpo),
-  delete: (ruta) => pedir('DELETE', ruta),
+  eliminar: (ruta) => pedir('DELETE', ruta),
 };
 
 export default api;

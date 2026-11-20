@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 
 coverage
+
+# Variables de entorno locales (cada uno crea el suyo desde .env.example)
+.env

@@ -1,93 +1,131 @@
 /**
- * Almacén de datos del frontend, conectado al backend (reemplaza al antiguo localStorage).
- * - Mantiene en memoria una copia de cada colección que llega de la API.
- * - cargar() trae la colección con GET; crear/actualizar/eliminar llaman a POST/PUT/DELETE
- *   y recién cuando el backend responde actualizan la copia y avisan a React.
- * - useColeccion usa listar() y suscribir() para que las pantallas se redibujen solas.
+ * Almacén de datos del frontend, conectado a la API REST.
+ * - Guarda en memoria cada colección que entrega el backend (caché compartida por toda la app).
+ * - cargar() hace GET; crear/actualizar/eliminar hacen POST/PUT/DELETE y actualizan la caché.
+ * - Por cada colección guarda también si está cargando y si hubo un error.
+ * - Avisa a los suscriptores (hooks useColeccion/useCarga) para que React redibuje.
+ * Los blogs no están en el modelo de la pauta: son contenido estático (seed.js).
  */
 import api from '../services/api';
+import { blogs } from './seed';
 
-// Colección del frontend -> ruta de la API
+// Ruta de la API de cada colección
 const RUTAS = {
   categorias: '/categorias',
   productos: '/productos',
   usuarios: '/usuarios',
   boletas: '/boletas',
 };
-// Funciones que hay que avisar cuando cambian los datos
-const suscriptores = new Set();
-// Copia en memoria de cada colección (referencia estable mientras no cambie)
-const cache = {};
-// Lista vacía compartida: así listar() devuelve siempre la misma referencia antes de cargar
-const VACIA = [];
+// Colecciones que dependen del usuario conectado (se olvidan al cambiar de sesión)
+const PRIVADAS = ['usuarios', 'boletas'];
 
-function validar(coleccion) {
-  if (!RUTAS[coleccion]) throw new Error(`Colección desconocida: ${coleccion}`);
+const VACIO = [];
+const INICIAL = { datos: VACIO, cargando: false, cargado: false, error: null };
+const ESTATICAS = { blogs: { ...INICIAL, datos: blogs, cargado: true } };
+
+// estados[coleccion] = { datos, cargando, cargado, error }
+const estados = {};
+const suscriptores = new Set();
+
+function avisar() {
+  suscriptores.forEach((funcion) => funcion());
 }
 
-// Guarda en memoria y avisa a todos
-function guardar(coleccion, datos) {
-  cache[coleccion] = datos;
-  suscriptores.forEach((avisar) => avisar());
+function ruta(coleccion) {
+  if (!RUTAS[coleccion]) throw new Error(`Colección desconocida: ${coleccion}`);
+  return RUTAS[coleccion];
+}
+
+// Reemplaza el estado por uno nuevo (objeto nuevo = React detecta el cambio) y avisa
+function fijar(coleccion, cambios) {
+  estados[coleccion] = { ...db.estado(coleccion), ...cambios };
+  avisar();
 }
 
 const db = {
-  // Devuelve la copia en memoria (lista vacía si todavía no se ha cargado)
-  listar(coleccion) {
-    validar(coleccion);
-    return cache[coleccion] ?? VACIA;
+  /** Estado completo de una colección: { datos, cargando, cargado, error }. */
+  estado(coleccion) {
+    if (ESTATICAS[coleccion]) return ESTATICAS[coleccion];
+    ruta(coleccion);
+    return estados[coleccion] ?? INICIAL;
   },
 
-  // Busca un elemento por id en la copia en memoria
+  listar(coleccion) {
+    return this.estado(coleccion).datos;
+  },
+
+  /** Busca por id. Number(id) porque el id puede venir como texto desde la URL. */
   obtener(coleccion, id) {
     return this.listar(coleccion).find((item) => item.id === Number(id));
   },
 
-  // READ: pide la colección al backend y la guarda
-  async cargar(coleccion) {
-    validar(coleccion);
-    guardar(coleccion, await api.get(RUTAS[coleccion]));
+  /** GET a la API. No repite la petición si ya se cargó o si está en curso (salvo forzar). */
+  async cargar(coleccion, { forzar = false } = {}) {
+    if (ESTATICAS[coleccion]) return;
+    const actual = this.estado(coleccion);
+    if (actual.cargando || (actual.cargado && !forzar)) return;
+    fijar(coleccion, { cargando: true, error: null });
+    try {
+      const datos = await api.get(ruta(coleccion));
+      fijar(coleccion, { datos, cargando: false, cargado: true });
+    } catch (error) {
+      fijar(coleccion, { cargando: false, error: error.message });
+    }
   },
 
-  // CREATE: el backend asigna el id y devuelve el registro creado
+  recargar(coleccion) {
+    return this.cargar(coleccion, { forzar: true });
+  },
+
+  /** POST: crea en el backend y agrega la respuesta (con su id) a la caché. */
   async crear(coleccion, datos) {
-    validar(coleccion);
-    const nuevo = await api.post(RUTAS[coleccion], datos);
-    guardar(coleccion, [...this.listar(coleccion), nuevo]);
+    const nuevo = await api.post(ruta(coleccion), datos);
+    if (this.estado(coleccion).cargado) {
+      fijar(coleccion, { datos: [...this.listar(coleccion), nuevo] });
+    }
     return nuevo;
   },
 
-  // UPDATE: el backend devuelve el registro ya actualizado
-  async actualizar(coleccion, id, cambios) {
-    validar(coleccion);
-    const actualizado = await api.put(`${RUTAS[coleccion]}/${id}`, cambios);
-    guardar(
-      coleccion,
-      this.listar(coleccion).map((item) => (item.id === Number(id) ? actualizado : item)),
-    );
+  /** PUT: actualiza en el backend y reemplaza el registro en la caché. */
+  async actualizar(coleccion, id, datos) {
+    const actualizado = await api.put(`${ruta(coleccion)}/${id}`, datos);
+    fijar(coleccion, {
+      datos: this.listar(coleccion).map((item) =>
+        item.id === actualizado.id ? actualizado : item,
+      ),
+    });
     return actualizado;
   },
 
-  // DELETE: si el backend lo permite, lo saca de la copia
+  /** DELETE: elimina en el backend y lo saca de la caché. */
   async eliminar(coleccion, id) {
-    validar(coleccion);
-    await api.delete(`${RUTAS[coleccion]}/${id}`);
-    guardar(
-      coleccion,
-      this.listar(coleccion).filter((item) => item.id !== Number(id)),
-    );
+    await api.eliminar(`${ruta(coleccion)}/${id}`);
+    fijar(coleccion, {
+      datos: this.listar(coleccion).filter((item) => item.id !== Number(id)),
+    });
   },
 
-  // Permite que un componente se entere de los cambios; devuelve la función para cancelar
-  suscribir(avisar) {
-    suscriptores.add(avisar);
-    return () => suscriptores.delete(avisar);
+  /** Carga datos directamente (pruebas unitarias). */
+  establecer(coleccion, datos) {
+    fijar(coleccion, { datos, cargando: false, cargado: true, error: null });
   },
 
-  // Olvida todo lo cargado (se usa al cerrar sesión y en las pruebas)
+  /** Permite que un componente se entere de los cambios; devuelve la función para cancelar. */
+  suscribir(funcion) {
+    suscriptores.add(funcion);
+    return () => suscriptores.delete(funcion);
+  },
+
+  /** Olvida los datos del usuario anterior (al iniciar o cerrar sesión). */
+  olvidarPrivadas() {
+    PRIVADAS.forEach((coleccion) => delete estados[coleccion]);
+    avisar();
+  },
+
+  /** Vacía toda la caché (pruebas). */
   reiniciar() {
-    Object.keys(cache).forEach((coleccion) => delete cache[coleccion]);
-    suscriptores.forEach((avisar) => avisar());
+    Object.keys(estados).forEach((coleccion) => delete estados[coleccion]);
+    avisar();
   },
 };
 
