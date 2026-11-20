@@ -1,32 +1,39 @@
-// Link: ir a otra página sin recargar; useParams: leer el :id de la URL
 import { Link, useParams } from 'react-router-dom';
-// ResumenOrden: componente propio que muestra cliente, dirección, productos y total
+import { EstadoBoleta, EstadoCarga } from '../../components/Estados';
+import Icono from '../../components/Icono';
 import ResumenOrden from '../../components/ResumenOrden';
-// useColeccion: hook propio que trae las boletas del backend
 import useColeccion from '../../hooks/useColeccion';
 
-// Página del admin que muestra la boleta de una orden
-// Ruta: /admin/ordenes/:id
+/** Detalle de una boleta (BOLETA + DETALLE_BOLETA) desde el panel. */
 export default function Boleta() {
-  // Saca el id de la orden desde la URL
+  return (
+    <EstadoCarga colecciones={['boletas']}>
+      <Detalle />
+    </EstadoCarga>
+  );
+}
+
+function Detalle() {
   const { id } = useParams();
-  // Busca la orden guardada
   const orden = useColeccion('boletas').find((b) => b.id === Number(id));
 
-  // Si la orden no existe, muestra un aviso
   if (!orden) return <p className="alert alert-warning">Orden no encontrada.</p>;
   return (
-    <section className="card card-body shadow-sm">
-      {/* Número de boleta con su estado al lado */}
-      {/* {' '} agrega un espacio entre el número y la etiqueta del estado */}
-      <h1 className="h3">
-        Boleta N° {orden.id}{' '}
-        <span className="badge text-bg-secondary">{orden.estado}</span>
-      </h1>
-      {/* Detalle del cliente, productos y total */}
-      <ResumenOrden orden={orden} />
-      {/* Link para volver a la tabla de órdenes */}
-      <Link to="/admin/ordenes">← Volver a órdenes</Link>
-    </section>
+    <>
+      <Link to="/admin/ordenes" className="enlace-volver">
+        <Icono nombre="arrow_back" />
+        Volver a órdenes
+      </Link>
+      <section className="card card-body mt-2">
+        <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
+          <h1 className="h3 mb-0">Boleta N° {orden.id}</h1>
+          <EstadoBoleta estado={orden.estado} />
+          <span className="text-secondary ms-auto small">
+            {new Date(orden.fecha).toLocaleString('es-CL')} · {orden.medioPago}
+          </span>
+        </div>
+        <ResumenOrden orden={orden} />
+      </section>
+    </>
   );
 }

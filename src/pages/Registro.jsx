@@ -5,6 +5,8 @@ import { Link, useNavigate } from 'react-router-dom';
 // Componentes propios del formulario: un campo suelto y el bloque de dirección
 import CampoFormulario from '../components/CampoFormulario';
 import CamposDireccion from '../components/CamposDireccion';
+import { AlertaError } from '../components/Estados';
+import Icono from '../components/Icono';
 // Hooks propios: sesión compartida y manejo del formulario
 import useAuth from '../hooks/useAuth';
 import useFormulario from '../hooks/useFormulario';
@@ -40,15 +42,16 @@ const REGLAS = {
 // Ruta: /registro
 export default function Registro() {
   // Función que guarda el usuario nuevo
-  // Viene del AuthProvider; devuelve el usuario o null si el correo ya existe
+  // Viene del AuthProvider; devuelve (async) el usuario o null si el correo ya existe
   const { registrar } = useAuth();
   // Para mandar al usuario a otra página
   const navegar = useNavigate();
   // Se pone en true si el correo ya está registrado
   // Parte en false: el mensaje de error no se ve al entrar
   const [correoRepetido, setCorreoRepetido] = useState(false);
-  // Mensaje si el servidor no responde o rechaza los datos
-  const [errorServidor, setErrorServidor] = useState('');
+  // Error del servidor (por ejemplo, backend apagado) y estado de envío
+  const [errorServidor, setErrorServidor] = useState(null);
+  const [enviando, setEnviando] = useState(false);
 
   // Maneja el formulario de registro
   const { valores, errores, cambiar, enviar } = useFormulario(
@@ -58,14 +61,20 @@ export default function Registro() {
     // confirmar se renombra a _repetida (el _ indica que no se usa);
     // ...datos junta todos los demás campos
     async ({ confirmar: _repetida, ...datos }) => {
-      setErrorServidor('');
+      setEnviando(true);
+      setCorreoRepetido(false);
+      setErrorServidor(null);
       try {
-        // Si se registró va al inicio; si no, muestra error
-        if (await registrar(datos)) navegar('/');
-        else setCorreoRepetido(true);
-      } catch (error) {
-        setErrorServidor(error.message);
+        // POST /api/v1/auth/registro: si se registró va al inicio; null = correo repetido
+        if (await registrar(datos)) {
+          navegar('/');
+          return;
+        }
+        setCorreoRepetido(true);
+      } catch (e) {
+        setErrorServidor(e.message);
       }
+      setEnviando(false);
     },
   );
 
@@ -74,7 +83,7 @@ export default function Registro() {
     <section className="col-lg-6 mx-auto">
       <h1 className="section-title">Crear cuenta</h1>
       {/* noValidate apaga la validación del navegador; se usa la de useFormulario */}
-      <form className="card card-body shadow-sm" onSubmit={enviar} noValidate>
+      <form className="card card-body" onSubmit={enviar} noValidate>
         {/* Nombre y apellidos lado a lado */}
         <div className="row">
           <div className="col-md-6">
@@ -131,19 +140,15 @@ export default function Registro() {
         {/* Calle, región y comuna */}
         <CamposDireccion valores={valores} errores={errores} cambiar={cambiar} />
         {/* Error si ya hay una cuenta con ese correo */}
-        {correoRepetido && (
-          <p className="alert alert-danger" role="alert">
-            Ya existe una cuenta con ese correo.
-          </p>
-        )}
-        {/* Error si el servidor no responde */}
-        {errorServidor && (
-          <p className="alert alert-danger" role="alert">
-            {errorServidor}
-          </p>
-        )}
+        {correoRepetido && <AlertaError mensaje="Ya existe una cuenta con ese correo." />}
+        <AlertaError mensaje={errorServidor} />
         {/* Botón que envía el formulario */}
-        <button type="submit" className="btn btn-primary">
+        <button type="submit" className="btn btn-primary" disabled={enviando}>
+          {enviando ? (
+            <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+          ) : (
+            <Icono nombre="person_add" />
+          )}
           Crear cuenta
         </button>
         {/* Link para ir al login */}

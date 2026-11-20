@@ -1,11 +1,13 @@
 // Link: componente de react-router para ir a otra página sin recargar
 import { Link } from 'react-router-dom';
-// blogs: artículos del blog (data/contenido.js); no vienen del backend
-import { blogs } from '../data/contenido';
+// useColeccion: hook propio que trae una colección de db y se actualiza sola
+import useColeccion from '../hooks/useColeccion';
 
 // Página que muestra la lista de artículos del blog
 // Ruta: /blogs (definida en App.jsx)
 export default function Blogs() {
+  // Trae todos los blogs guardados
+  const blogs = useColeccion('blogs');
   // <> </> agrupa el título y la grilla sin agregar un div extra
   return (
     <>

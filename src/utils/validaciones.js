@@ -21,14 +21,12 @@ export const correo = (valor) =>
 export const minimo = (largo) => (valor) =>
   String(valor).length >= largo ? '' : `Debe tener al menos ${largo} caracteres.`;
 
-// Como minimo(), pero el campo puede quedar vacío (sirve para "cambiar la contraseña solo si quiero")
-export const minimoSiHay = (largo) => (valor) =>
-  String(valor ?? '') === '' || String(valor).length >= largo
-    ? ''
-    : `Debe tener al menos ${largo} caracteres.`;
-
 // Revisa que sea un número y que no sea negativo
 // Primero descarta el campo vacío y después revisa que sea 0 o más
+// Igual que minimo, pero acepta el campo vacío (por ejemplo, la contraseña al editar = no cambiarla)
+export const minimoSiHay = (largo) => (valor) =>
+  !String(valor ?? '') ? '' : minimo(largo)(valor);
+
 export const numeroNoNegativo = (valor) =>
   valor !== '' && Number(valor) >= 0 ? '' : 'Ingresa un número igual o mayor a 0.';
 

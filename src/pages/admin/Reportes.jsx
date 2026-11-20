@@ -1,65 +1,79 @@
-// useColeccion: hook propio que trae una colección de db y se actualiza sola
+import { EstadoCarga, EstadoVacio } from '../../components/Estados';
+import Icono from '../../components/Icono';
 import useColeccion from '../../hooks/useColeccion';
-// precioCLP: da formato de pesos chilenos a un número
 import { precioCLP } from '../../utils/formato';
-// resumenVentas: calcula los totales a partir de las órdenes (utils/reportes.js)
 import { resumenVentas } from '../../utils/reportes';
 
-// Página con los reportes de ventas
-// Ruta: /admin/reportes
+/** Reporte de ventas calculado desde las boletas (solo administrador). */
 export default function Reportes() {
-  // Calcula los totales de ventas a partir de las órdenes
-  // Se sacan los cuatro datos que devuelve resumenVentas
+  return (
+    <>
+      <h1 className="h3">Reportes</h1>
+      <p className="text-secondary">Solo cuentan las compras pagadas.</p>
+      <EstadoCarga colecciones={['boletas']}>
+        <Resumen />
+      </EstadoCarga>
+    </>
+  );
+}
+
+function Resumen() {
   const { ventasTotales, ordenesPagadas, ordenesRechazadas, porProducto } = resumenVentas(
     useColeccion('boletas'),
   );
   return (
     <>
-      <h1 className="h3">Reportes</h1>
-      {/* Tarjetas con los números principales */}
       <div className="row g-3 mb-4">
-        {/* Lista de [título, valor] que se recorre con map para no repetir la tarjeta */}
         {[
-          ['Ventas totales', precioCLP(ventasTotales)],
-          ['Órdenes pagadas', ordenesPagadas],
-          ['Pagos rechazados', ordenesRechazadas],
-        ].map(([titulo, valor]) => (
+          ['Ventas totales', precioCLP(ventasTotales), 'payments'],
+          ['Órdenes pagadas', ordenesPagadas, 'check_circle'],
+          ['Pagos rechazados', ordenesRechazadas, 'cancel'],
+        ].map(([titulo, valor, icono]) => (
           <div className="col-md-4" key={titulo}>
-            <div className="card card-body shadow-sm">
-              <p className="mb-0 text-secondary">{titulo}</p>
-              <p className="h3 mb-0">{valor}</p>
+            <div className="card kpi h-100">
+              <div className="card-body">
+                <span className="icono-caja">
+                  <Icono nombre={icono} />
+                </span>
+                <div>
+                  <p className="kpi-titulo">{titulo}</p>
+                  <p className="kpi-valor">{valor}</p>
+                </div>
+              </div>
             </div>
           </div>
         ))}
       </div>
-      {/* Tabla con lo que vendió cada producto */}
       <h2 className="h5">Ventas por producto</h2>
-      <div className="table-responsive">
-        <table className="table">
-          {/* Títulos de las columnas */}
-          <thead>
-            <tr>
-              <th scope="col">Producto</th>
-              <th scope="col">Unidades</th>
-              <th scope="col">Ingresos</th>
-            </tr>
-          </thead>
-          <tbody>
-            {/* Una fila por producto, ya ordenadas de mayor a menor ingreso */}
-            {porProducto.map((p) => (
-              <tr key={p.nombre}>
-                <td>{p.nombre}</td>
-                <td>{p.unidades}</td>
-                <td>{precioCLP(p.ingresos)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {/* Aviso si todavía no hay ventas */}
-      {porProducto.length === 0 && (
-        <p className="alert alert-info">Aún no hay ventas registradas.</p>
+      {porProducto.length === 0 ? (
+        <EstadoVacio icono="bar_chart">Aún no hay ventas registradas.</EstadoVacio>
+      ) : (
+        <div className="card tabla-card">
+          <div className="table-responsive">
+            <table className="table table-hover mb-0">
+              <thead>
+                <tr>
+                  <th scope="col">Producto</th>
+                  <th scope="col">Unidades</th>
+                  <th scope="col">Ingresos</th>
+                </tr>
+              </thead>
+              <tbody>
+                {porProducto.map((p) => (
+                  <tr key={p.nombre}>
+                    <td>{p.nombre}</td>
+                    <td>{p.unidades}</td>
+                    <td>{precioCLP(p.ingresos)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
+      <p className="small text-secondary mt-3 mb-0">
+        <Icono nombre="info" /> Las órdenes rechazadas no suman ventas ni descuentan stock.
+      </p>
     </>
   );
 }

@@ -1,6 +1,7 @@
 // useSearchParams: hook de react-router para leer y cambiar lo que va después del ? en la URL
 import { useSearchParams } from 'react-router-dom';
 // ListaProductos: componente propio que dibuja la grilla de productos
+import { EstadoCarga } from '../components/Estados';
 import ListaProductos from '../components/ListaProductos';
 // Hooks propios: carrito compartido y colecciones de db
 import useCarrito from '../hooks/useCarrito';
@@ -74,10 +75,12 @@ export default function Productos() {
       </div>
       {/* Productos que cumplen con los filtros */}
       {/* Se filtra cada vez que se dibuja, con los valores actuales de la URL */}
-      <ListaProductos
-        productos={filtrarProductos(productos, { texto, categoriaId })}
-        onAgregar={agregar}
-      />
+      <EstadoCarga colecciones={['productos', 'categorias']}>
+        <ListaProductos
+          productos={filtrarProductos(productos, { texto, categoriaId })}
+          onAgregar={agregar}
+        />
+      </EstadoCarga>
     </>
   );
 }

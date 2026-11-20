@@ -1,7 +1,7 @@
 // Link: ir a otra página sin recargar; useParams: leer el :id de la URL
 import { Link, useParams } from 'react-router-dom';
-// blogs: artículos del blog (data/contenido.js); no vienen del backend
-import { blogs } from '../data/contenido';
+// useColeccion: hook propio que trae una colección de db y se actualiza sola
+import useColeccion from '../hooks/useColeccion';
 
 // Página que muestra un artículo del blog completo
 // Ruta: /blogs/:id
@@ -10,7 +10,7 @@ export default function DetalleBlog() {
   const { id } = useParams();
   // Busca el blog que tiene ese id
   // Number(id) porque en la URL el id es texto
-  const blog = blogs.find((b) => b.id === Number(id));
+  const blog = useColeccion('blogs').find((b) => b.id === Number(id));
 
   // Si no existe, avisa que no se encontró
   if (!blog) return <p className="alert alert-warning">Artículo no encontrado.</p>;

@@ -1,6 +1,7 @@
 // Link: componente de react-router para ir a otra página sin recargar
 import { Link } from 'react-router-dom';
 // Componentes propios que dibujan las tarjetas de categorías y de productos
+import { EstadoCarga } from '../components/Estados';
 import ListaCategorias from '../components/ListaCategorias';
 import ListaProductos from '../components/ListaProductos';
 // Hooks propios: carrito compartido y colecciones de db
@@ -35,17 +36,21 @@ export default function Home() {
       {/* Tarjetas de categorías */}
       <section className="mb-5">
         <h2 className="section-title">Categorías</h2>
-        <ListaCategorias categorias={categorias} />
+        <EstadoCarga colecciones={['categorias']}>
+          <ListaCategorias categorias={categorias} />
+        </EstadoCarga>
       </section>
 
       {/* Solo los productos marcados como destacados */}
       <section className="mb-5">
         <h2 className="section-title">Productos destacados</h2>
         {/* filter deja solo los productos con destacado: true */}
-        <ListaProductos
-          productos={productos.filter((p) => p.destacado)}
-          onAgregar={agregar}
-        />
+        <EstadoCarga colecciones={['productos']}>
+          <ListaProductos
+            productos={productos.filter((p) => p.destacado)}
+            onAgregar={agregar}
+          />
+        </EstadoCarga>
       </section>
 
       {/* Video de YouTube de la tienda */}

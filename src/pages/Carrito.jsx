@@ -6,10 +6,12 @@ import useCarrito from '../hooks/useCarrito';
 import { precioCLP } from '../utils/formato';
 // precioFinal: precio de oferta si hay, o el normal
 import { precioFinal } from '../utils/productos';
+import { EstadoCarga, EstadoVacio } from '../components/Estados';
+import Icono from '../components/Icono';
 
 // Página del carrito con los productos que eligió el usuario
 // Ruta: /carrito
-export default function Carrito() {
+function ContenidoCarrito() {
   // Productos, total y acciones para modificar el carrito
   // Todo viene del CarritoProvider, así esta página no guarda estado propio
   const { items, total, cambiarCantidad, quitar, vaciar } = useCarrito();
@@ -18,9 +20,16 @@ export default function Carrito() {
   // y un link para volver a los productos
   if (items.length === 0) {
     return (
-      <p className="alert alert-info">
-        Tu carrito está vacío. <Link to="/productos">Ver productos</Link>
-      </p>
+      <EstadoVacio
+        icono="shopping_cart"
+        accion={
+          <Link to="/productos" className="btn btn-primary">
+            Ver productos
+          </Link>
+        }
+      >
+        Tu carrito está vacío.
+      </EstadoVacio>
     );
   }
 
@@ -30,8 +39,8 @@ export default function Carrito() {
       <h1 className="section-title">Carrito de compras</h1>
       {/* Tabla con los productos del carrito */}
       {/* table-responsive permite moverla de lado en pantallas chicas */}
-      <div className="table-responsive">
-        <table className="table align-middle">
+      <div className="card tabla-card table-responsive">
+        <table className="table align-middle mb-0">
           {/* Títulos de las columnas */}
           <thead>
             <tr>
@@ -74,6 +83,7 @@ export default function Carrito() {
                     className="btn btn-sm btn-danger"
                     onClick={() => quitar(producto.id)}
                   >
+                    <Icono nombre="delete" />
                     Eliminar
                   </button>
                 </td>
@@ -83,18 +93,29 @@ export default function Carrito() {
         </table>
       </div>
       {/* Total a pagar */}
-      <p className="h4 text-end">Total: {precioCLP(total)}</p>
+      <p className="h4 text-end mt-3">Total: {precioCLP(total)}</p>
       {/* Botones para vaciar el carrito o ir a pagar */}
       <div className="d-flex justify-content-end gap-2">
         {/* Limpiar llama a vaciar y deja el carrito sin productos */}
         <button type="button" className="btn btn-secondary" onClick={vaciar}>
+          <Icono nombre="remove_shopping_cart" />
           Limpiar
         </button>
         {/* Comprar ahora lleva a la página de pago */}
         <Link to="/checkout" className="btn btn-success">
+          <Icono nombre="shopping_cart_checkout" />
           Comprar ahora
         </Link>
       </div>
     </>
+  );
+}
+
+// Espera a que lleguen los datos del backend antes de dibujar (muestra Cargando… o el error)
+export default function Carrito() {
+  return (
+    <EstadoCarga colecciones={['productos']}>
+      <ContenidoCarrito />
+    </EstadoCarga>
   );
 }

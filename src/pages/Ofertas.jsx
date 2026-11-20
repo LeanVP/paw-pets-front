@@ -1,4 +1,5 @@
 // ListaProductos: componente propio que dibuja la grilla de productos
+import { EstadoCarga } from '../components/Estados';
 import ListaProductos from '../components/ListaProductos';
 // Hooks propios: carrito compartido y colecciones de db
 import useCarrito from '../hooks/useCarrito';
@@ -18,7 +19,9 @@ export default function Ofertas() {
       <h1 className="section-title">Ofertas</h1>
       {/* Lista filtrada para mostrar solo las ofertas */}
       {/* filter(enOferta) llama a enOferta con cada producto y deja los que dan true */}
-      <ListaProductos productos={productos.filter(enOferta)} onAgregar={agregar} />
+      <EstadoCarga colecciones={['productos']}>
+        <ListaProductos productos={productos.filter(enOferta)} onAgregar={agregar} />
+      </EstadoCarga>
     </>
   );
 }

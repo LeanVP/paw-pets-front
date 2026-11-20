@@ -8,10 +8,11 @@ import useCarrito from '../hooks/useCarrito';
 import useColeccion from '../hooks/useColeccion';
 // filtrarProductos: filtra la lista por texto y/o categoría
 import { filtrarProductos } from '../utils/productos';
+import { EstadoCarga } from '../components/Estados';
 
 /** /categorias muestra todos los productos; /categorias/:id solo los de esa categoría. */
 // App.jsx usa esta misma página para las dos rutas
-export default function Categorias() {
+function ContenidoCategorias() {
   // Saca el id de la categoría desde la URL
   // En /categorias no hay id, entonces id queda undefined
   const { id } = useParams();
@@ -41,5 +42,14 @@ export default function Categorias() {
         onAgregar={agregar}
       />
     </>
+  );
+}
+
+// Espera a que lleguen los datos del backend antes de dibujar (muestra Cargando… o el error)
+export default function Categorias() {
+  return (
+    <EstadoCarga colecciones={['categorias', 'productos']}>
+      <ContenidoCategorias />
+    </EstadoCarga>
   );
 }

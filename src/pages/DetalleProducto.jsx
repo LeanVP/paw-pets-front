@@ -9,10 +9,12 @@ import useColeccion from '../hooks/useColeccion';
 import { precioCLP } from '../utils/formato';
 // enOferta: dice si tiene oferta; precioFinal: precio que se cobra
 import { enOferta, precioFinal } from '../utils/productos';
+import { EstadoCarga, EtiquetaEstado } from '../components/Estados';
+import Icono from '../components/Icono';
 
 // Página con toda la información de un producto
 // Ruta: /productos/:id
-export default function DetalleProducto() {
+function ContenidoDetalleProducto() {
   // Saca el id del producto desde la URL
   const { id } = useParams();
   // Busca el producto que tiene ese id
@@ -26,6 +28,8 @@ export default function DetalleProducto() {
   // Dice si ya se agregó al carrito, para mostrar aviso
   // Parte en false: el aviso no se ve hasta apretar el botón
   const [agregado, setAgregado] = useState(false);
+  // Si la foto no carga se muestra el reemplazo (igual que en la tarjeta del producto)
+  const [imagenFallo, setImagenFallo] = useState(false);
 
   // Si el producto no existe, muestra un aviso
   // (por ejemplo si alguien escribe /productos/999)
@@ -51,14 +55,18 @@ export default function DetalleProducto() {
       {/* Columna de la imagen, o un reemplazo si no tiene */}
       <div className="col-md-6">
         {/* Si producto.imagen tiene algo se muestra la foto; si no, el cuadro de reemplazo */}
-        {producto.imagen ? (
+        {producto.imagen?.trim() && !imagenFallo ? (
           <img
             src={producto.imagen}
             alt={producto.nombre}
-            className="img-fluid rounded"
+            className="img-fluid detalle-imagen"
+            onError={() => setImagenFallo(true)}
           />
         ) : (
-          <div className="producto-placeholder rounded">Imagen no disponible</div>
+          <div className="producto-placeholder detalle-imagen">
+            <Icono nombre="hide_image" />
+            Imagen no disponible
+          </div>
         )}
       </div>
       {/* Columna con los datos del producto */}
@@ -75,15 +83,23 @@ export default function DetalleProducto() {
         </p>
         {/* Descripción y stock del producto */}
         <p>{producto.descripcion}</p>
-        <p className="text-secondary">Stock disponible: {producto.stock}</p>
+        <p>
+          {producto.stock > 0 ? (
+            <EtiquetaEstado tipo="ok" icono="inventory_2">
+              Stock disponible: {producto.stock}
+            </EtiquetaEstado>
+          ) : (
+            <EtiquetaEstado tipo="error">Sin stock</EtiquetaEstado>
+          )}
+        </p>
         {/* Elegir cantidad y botón para agregar al carrito */}
         <div className="d-flex gap-2 align-items-center mb-3">
           {/* htmlFor="cantidad" conecta la etiqueta con el input de id "cantidad" */}
           <label htmlFor="cantidad" className="form-label mb-0">
             Cantidad
           </label>
-          {/* La cantidad nunca baja de 1 */}
-          {/* Math.max(1, ...) cambia 0 o números negativos por 1 */}
+          {/* La cantidad queda entre 1 y el stock disponible */}
+          {/* Math.max(1, ...) cambia 0 o negativos por 1; Math.min(stock, ...) no deja pasar el stock */}
           <input
             id="cantidad"
             type="number"
@@ -91,7 +107,9 @@ export default function DetalleProducto() {
             min={1}
             max={producto.stock}
             value={cantidad}
-            onChange={(e) => setCantidad(Math.max(1, Number(e.target.value)))}
+            onChange={(e) =>
+              setCantidad(Math.min(producto.stock, Math.max(1, Number(e.target.value))))
+            }
           />
           {/* Se desactiva si no queda stock */}
           <button
@@ -100,16 +118,27 @@ export default function DetalleProducto() {
             disabled={producto.stock === 0}
             onClick={agregarAlCarrito}
           >
+            <Icono nombre="add_shopping_cart" />
             Agregar al carrito
           </button>
         </div>
         {/* Aviso que aparece después de agregar al carrito */}
         {agregado && (
-          <p className="alert alert-success" role="status">
+          <p className="alert alert-success alerta-paw" role="status">
+            <Icono nombre="check_circle" />
             Producto agregado. <Link to="/carrito">Ver carrito</Link>
           </p>
         )}
       </div>
     </div>
+  );
+}
+
+// Espera a que lleguen los datos del backend antes de dibujar (muestra Cargando… o el error)
+export default function DetalleProducto() {
+  return (
+    <EstadoCarga colecciones={['productos']}>
+      <ContenidoDetalleProducto />
+    </EstadoCarga>
   );
 }

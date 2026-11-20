@@ -1,48 +1,49 @@
-// Link: ir a otra página sin recargar; useParams: leer el :id de la URL
 import { Link, useParams } from 'react-router-dom';
-// ResumenOrden: componente propio que muestra cliente, dirección, productos y total
+import { EstadoCarga } from '../components/Estados';
+import Icono from '../components/Icono';
 import ResumenOrden from '../components/ResumenOrden';
-// useColeccion: hook propio que trae las boletas del backend (un cliente solo recibe las suyas)
 import useColeccion from '../hooks/useColeccion';
 
 /** Vista de compra exitosa (exito = true) o de pago con error (exito = false). */
-// Prop: exito. App.jsx la usa en dos rutas:
-// /compra/exitosa/:id con exito = true y /compra/error/:id con exito = false
 export default function PagoResultado({ exito }) {
-  // Saca el id de la orden desde la URL
+  return (
+    <EstadoCarga colecciones={['boletas']}>
+      <Resultado exito={exito} />
+    </EstadoCarga>
+  );
+}
+
+function Resultado({ exito }) {
   const { id } = useParams();
-  // Busca la orden guardada con ese id
-  // useColeccion trae las boletas del backend y se actualiza sola
+  // GET /boletas: el cliente solo recibe sus propias boletas
   const orden = useColeccion('boletas').find((b) => b.id === Number(id));
 
-  // Si la orden no existe, muestra un aviso
   if (!orden) return <p className="alert alert-warning">Orden no encontrada.</p>;
   return (
-    <section className="col-lg-8 mx-auto card card-body shadow-sm">
-      {/* Título verde si salió bien, rojo si falló */}
-      {/* Las clases y el texto cambian según el valor de exito */}
-      <h1 className={`h3 ${exito ? 'text-success' : 'text-danger'}`}>
-        {exito
-          ? `Se ha realizado la compra. Nro #${orden.id}`
-          : `No se pudo realizar el pago. Nro #${orden.id}`}
-      </h1>
-      {/* Detalle completo de la orden */}
+    <section className="col-lg-8 mx-auto card card-body">
+      <div className={`resultado-pago ${exito ? 'resultado-ok' : 'resultado-error'}`}>
+        <Icono nombre={exito ? 'check_circle' : 'cancel'} relleno />
+        <h1 className="h3 mb-0">
+          {exito
+            ? `Se ha realizado la compra. Nro #${orden.id}`
+            : `No se pudo realizar el pago. Nro #${orden.id}`}
+        </h1>
+      </div>
       <ResumenOrden orden={orden} />
-      {/* Botones: imprimir boleta o reintentar el pago */}
       <div className="d-flex flex-wrap gap-2 justify-content-center">
-        {/* Si salió bien: window.print() abre la ventana de imprimir del navegador */}
-        {/* Si falló: link para volver al checkout (el carrito sigue lleno) */}
         {exito ? (
           <button type="button" className="btn btn-danger" onClick={() => window.print()}>
+            <Icono nombre="print" />
             Imprimir boleta
           </button>
         ) : (
           <Link to="/checkout" className="btn btn-success">
+            <Icono nombre="replay" />
             Volver a realizar el pago
           </Link>
         )}
-        {/* Este botón aparece en los dos casos */}
         <Link to="/" className="btn btn-outline-dark">
+          <Icono nombre="home" />
           Volver al inicio
         </Link>
       </div>

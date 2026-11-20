@@ -1,32 +1,21 @@
-// useState: hook de React para guardar datos que cambian (estado)
 import { useState } from 'react';
-// Link: ir a otra página sin recargar; useNavigate: cambiar de página desde el código
 import { Link, useNavigate } from 'react-router-dom';
-// Componentes propios del formulario: un campo suelto y el bloque de dirección
 import CampoFormulario from '../components/CampoFormulario';
 import CamposDireccion from '../components/CamposDireccion';
-// Hooks propios: sesión y carrito compartidos
+import { AlertaError, EstadoCarga, EstadoVacio } from '../components/Estados';
+import Icono from '../components/Icono';
+import db from '../data/db';
 import useAuth from '../hooks/useAuth';
 import useCarrito from '../hooks/useCarrito';
-// db: almacén conectado al backend; db.crear envía la compra a POST /api/v1/boletas
-import db from '../data/db';
-// useFormulario: hook propio que maneja valores, errores y envío
 import useFormulario from '../hooks/useFormulario';
-// precioCLP: formato de pesos
 import { precioCLP } from '../utils/formato';
-// Reglas de validación que se usan en este formulario
 import { correo, requerido } from '../utils/validaciones';
 
-// Medios de pago simulados: el último rechaza el pago para poder probar la vista de error.
 const MEDIO_RECHAZADO = 'Tarjeta sin fondos (simula error)';
-// Lista de medios de pago en formato para el select
-// map convierte cada texto en { valor, texto }
 const MEDIOS = ['Tarjeta de débito', 'Tarjeta de crédito', MEDIO_RECHAZADO].map((m) => ({
   valor: m,
   texto: m,
 }));
-// Validaciones de cada campo del formulario de compra
-// indicaciones no aparece aquí porque es opcional
 const REGLAS = {
   nombre: [requerido],
   apellidos: [requerido],
@@ -37,97 +26,113 @@ const REGLAS = {
   medioPago: [requerido],
 };
 
-// Página para completar los datos y pagar la compra
-// Ruta: /checkout
+/**
+ * Finalizar compra. Exige sesión (la boleta queda asociada al usuario, Figura 1).
+ * Envía al backend solo { productoId, cantidad }: el servidor calcula precios y total,
+ * valida y descuenta el stock y decide si el pago queda Pagada o Rechazada.
+ */
 export default function Checkout() {
-  // Usuario con sesión iniciada (si hay)
   const { usuario } = useAuth();
-  // Productos y total del carrito, y función para vaciarlo
-  const { items, total, vaciar } = useCarrito();
-  // Para mandar al usuario a otra página
-  const navegar = useNavigate();
-  // Mensaje de error que devuelve el backend (stock insuficiente, servidor caído...)
-  const [errorCompra, setErrorCompra] = useState('');
+  const { items } = useCarrito();
 
-  // Si hay sesión iniciada, los datos del cliente se completan automáticamente.
-  // usuario?.nombre da undefined si no hay sesión, y ?? '' lo deja vacío
+  if (!usuario) {
+    return (
+      <section className="col-lg-6 mx-auto">
+        <h1 className="section-title">Finalizar compra</h1>
+        <EstadoVacio
+          icono="lock"
+          accion={
+            <div className="d-flex flex-wrap gap-2 justify-content-center">
+              <Link to="/login" state={{ desde: '/checkout' }} className="btn btn-primary">
+                <Icono nombre="login" />
+                Iniciar sesión
+              </Link>
+              <Link to="/registro" className="btn btn-outline-dark">
+                <Icono nombre="person_add" />
+                Crear cuenta
+              </Link>
+            </div>
+          }
+        >
+          Para pagar debes iniciar sesión. Tu carrito se mantiene guardado.
+        </EstadoVacio>
+      </section>
+    );
+  }
+
+  if (usuario.rol === 'vendedor') {
+    return (
+      <AlertaError mensaje="El perfil vendedor puede consultar productos y órdenes, pero no realizar compras." />
+    );
+  }
+
+  return (
+    <EstadoCarga colecciones={['productos']}>
+      {items.length === 0 ? (
+        <EstadoVacio
+          icono="shopping_cart"
+          accion={
+            <Link to="/productos" className="btn btn-primary">
+              Ver productos
+            </Link>
+          }
+        >
+          No hay productos para pagar.
+        </EstadoVacio>
+      ) : (
+        <FormularioPago usuario={usuario} />
+      )}
+    </EstadoCarga>
+  );
+}
+
+function FormularioPago({ usuario }) {
+  const { items, total, vaciar } = useCarrito();
+  const navegar = useNavigate();
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState(null);
+
   const inicial = {
-    nombre: usuario?.nombre ?? '',
-    apellidos: usuario?.apellidos ?? '',
-    correo: usuario?.correo ?? '',
-    calle: usuario?.calle ?? '',
-    region: usuario?.region ?? '',
-    comuna: usuario?.comuna ?? '',
+    nombre: usuario.nombre ?? '',
+    apellidos: usuario.apellidos ?? '',
+    correo: usuario.correo ?? '',
+    calle: usuario.calle ?? '',
+    region: usuario.region ?? '',
+    comuna: usuario.comuna ?? '',
     indicaciones: '',
     medioPago: '',
   };
 
-  // Maneja los valores, errores y el envío del formulario
-  const { valores, errores, cambiar, enviar } = useFormulario(
-    inicial,
-    REGLAS,
-    // Se ejecuta cuando el formulario no tiene errores
-    async (datos) => {
-      setErrorCompra('');
-      try {
-        // Envía la compra al backend. Solo viajan los ids y las cantidades:
-        // el precio, el total, el estado y el descuento de stock los calcula el servidor.
-        const boleta = await db.crear('boletas', {
-          ...datos,
-          items: items.map(({ producto, cantidad }) => ({
-            productoId: producto.id,
-            cantidad,
-          })),
-        });
-        // El backend responde con la boleta creada y su estado: 'Pagada' o 'Rechazada'
-        if (boleta.estado === 'Pagada') {
-          // Vacía el carrito, refresca el stock y muestra la compra exitosa
-          vaciar();
-          db.cargar('productos').catch(() => {});
-          // Ejemplo: /compra/exitosa/3
-          navegar(`/compra/exitosa/${boleta.id}`);
-        } else {
-          // Si se rechazó, muestra la página de error
-          // El carrito no se vacía, para poder reintentar el pago
-          navegar(`/compra/error/${boleta.id}`);
-        }
-      } catch (error) {
-        // Por ejemplo: stock insuficiente o servidor caído
-        setErrorCompra(error.message);
+  const { valores, errores, cambiar, enviar } = useFormulario(inicial, REGLAS, async (datos) => {
+    setEnviando(true);
+    setError(null);
+    try {
+      // POST /api/v1/boletas
+      const boleta = await db.crear('boletas', {
+        ...datos,
+        items: items.map(({ producto, cantidad }) => ({ productoId: producto.id, cantidad })),
+      });
+      // El stock cambió en el backend: se vuelve a pedir el catálogo
+      db.recargar('productos');
+      if (boleta.estado === 'Pagada') {
+        navegar(`/compra/exitosa/${boleta.id}`);
+        vaciar();
+      } else {
+        navegar(`/compra/error/${boleta.id}`);
       }
-    },
-  );
+    } catch (e) {
+      // Por ejemplo, 409 "Stock insuficiente..."
+      setError(e.message);
+      setEnviando(false);
+    }
+  });
 
-  // Para pagar hay que iniciar sesión: la boleta queda asociada al usuario
-  if (!usuario) {
-    return (
-      <p className="alert alert-info">
-        Para pagar debes <Link to="/login">iniciar sesión</Link> o{' '}
-        <Link to="/registro">crear una cuenta</Link>.
-      </p>
-    );
-  }
-
-  // Sin productos en el carrito no hay nada que pagar
-  if (items.length === 0) {
-    return (
-      <p className="alert alert-info">
-        No hay productos para pagar. <Link to="/productos">Ver productos</Link>
-      </p>
-    );
-  }
-
-  // Formulario de compra centrado
   return (
     <section className="col-lg-8 mx-auto">
       <h1 className="section-title">Finalizar compra</h1>
-      {/* noValidate apaga la validación del navegador; se usa la de useFormulario */}
-      <form className="card card-body shadow-sm" onSubmit={enviar} noValidate>
-        {/* Total arriba a la derecha */}
+      <form className="card card-body" onSubmit={enviar} noValidate>
         <p className="h5 text-end">Total a pagar: {precioCLP(total)}</p>
-        {/* Datos personales del cliente */}
         <h2 className="h5">Información del cliente</h2>
-        {/* Nombre y apellidos lado a lado */}
         <div className="row">
           <div className="col-md-6">
             <CampoFormulario
@@ -148,7 +153,6 @@ export default function Checkout() {
             />
           </div>
         </div>
-        {/* Campo correo */}
         <CampoFormulario
           etiqueta="Correo electrónico"
           nombre="correo"
@@ -157,11 +161,8 @@ export default function Checkout() {
           error={errores.correo}
           onChange={cambiar}
         />
-        {/* Dirección donde se entrega el pedido */}
         <h2 className="h5">Dirección de entrega</h2>
-        {/* Calle, región y comuna; recibe valores, errores y cambiar del mismo formulario */}
         <CamposDireccion valores={valores} errores={errores} cambiar={cambiar} />
-        {/* Indicaciones opcionales, no tienen validación */}
         <CampoFormulario
           etiqueta="Indicaciones para la entrega (opcional)"
           nombre="indicaciones"
@@ -169,7 +170,6 @@ export default function Checkout() {
           valor={valores.indicaciones}
           onChange={cambiar}
         />
-        {/* Select para elegir cómo pagar */}
         <CampoFormulario
           etiqueta="Medio de pago"
           nombre="medioPago"
@@ -179,14 +179,13 @@ export default function Checkout() {
           error={errores.medioPago}
           onChange={cambiar}
         />
-        {/* Error que devolvió el backend, si lo hubo */}
-        {errorCompra && (
-          <p className="alert alert-danger" role="alert">
-            {errorCompra}
-          </p>
-        )}
-        {/* Botón que envía el formulario y muestra el total */}
-        <button type="submit" className="btn btn-success">
+        <AlertaError mensaje={error} />
+        <button type="submit" className="btn btn-success" disabled={enviando}>
+          {enviando ? (
+            <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+          ) : (
+            <Icono nombre="lock" />
+          )}
           Pagar ahora {precioCLP(total)}
         </button>
       </form>
