@@ -1,5 +1,32 @@
 # Cobertura de testing – PawPets React
 
+## Actualización Evaluación 3 (20-11-2026)
+
+Con la integración al backend, las pruebas usan `fetch` simulado (`simularApi` en `src/test/ayudas.jsx`)
+y se agregaron pruebas de sesión JWT y de roles. Ejecución real de `npm test` (Chrome Headless 157, Windows):
+
+**`Executed 60 of 60 SUCCESS`** → 60 pruebas en 14 archivos, 0 fallidas.
+
+| Carpeta | Sentencias | Ramas | Funciones | Líneas |
+| ------------- | ---------- | ------- | --------- | ------- |
+| **Total** | **90.65 %** | **80.86 %** | **85.53 %** | **91.52 %** |
+| `components/` | 83.33 % | 78.2 % | 70.58 % | 84.61 % |
+| `context/` | 88.17 % | 81.48 % | 83.78 % | 86.66 % |
+| `data/` | 96.42 % | 84.21 % | 100 % | 100 % |
+| `hooks/` | 94.11 % | 81.81 % | 89.47 % | 96 % |
+| `pages/` | 98.18 % | 95.45 % | 100 % | 98.18 % |
+| `services/` | 87.5 % | 87.5 % | 91.66 % | 88.57 % |
+| `utils/` | 91.3 % | 67.85 % | 82.6 % | 92.5 % |
+
+Pruebas nuevas o reescritas: `db.spec.jsx` (GET/POST/PUT/DELETE contra la API simulada, errores, caché),
+`AuthProvider.spec.jsx` (login, 401, 409, persistencia tras recargar, token vencido, renovación, cierre ante 401),
+`Login.spec.jsx` (errores del servidor y redirección por rol), `RutaAdmin.spec.jsx` (visitante, cliente, vendedor y
+admin), `Header.spec.jsx` (vendedor ve el panel), `Registro.spec.jsx`, `Carrito.spec.jsx` y `CarritoProvider.spec.jsx`.
+
+El resto de este documento corresponde a la Evaluación 2 (48 pruebas) y se mantiene como historial.
+
+---
+
 Este documento explica cómo se prueba el proyecto, qué pruebas hay y cuánto código cubren.
 Todos los números salen de una ejecución real de `npm test` hecha el **24-10-2026**
 (Chrome Headless 156, Windows).
