@@ -5,18 +5,26 @@
 Con la integración al backend, las pruebas usan `fetch` simulado (`simularApi` en `src/test/ayudas.jsx`)
 y se agregaron pruebas de sesión JWT y de roles. Ejecución real de `npm test` (Chrome Headless 157, Windows):
 
-**`Executed 60 of 60 SUCCESS`** → 60 pruebas en 14 archivos, 0 fallidas.
+**`Executed 68 of 68 SUCCESS`** → 68 pruebas en 15 archivos, 0 fallidas.
 
 | Carpeta | Sentencias | Ramas | Funciones | Líneas |
 | ------------- | ---------- | ------- | --------- | ------- |
-| **Total** | **90.65 %** | **80.86 %** | **85.53 %** | **91.52 %** |
-| `components/` | 83.33 % | 78.2 % | 70.58 % | 84.61 % |
+| **Total** | **88.2 %** | **80.99 %** | **82.51 %** | **88.8 %** |
+| `components/` | 84.72 % | 82.05 % | 73.52 % | 86.15 % |
 | `context/` | 88.17 % | 81.48 % | 83.78 % | 86.66 % |
 | `data/` | 96.42 % | 84.21 % | 100 % | 100 % |
 | `hooks/` | 94.11 % | 81.81 % | 89.47 % | 96 % |
+| `layouts/` | 100 % | 66.66 % | 100 % | 100 % |
 | `pages/` | 98.18 % | 95.45 % | 100 % | 98.18 % |
+| `pages/admin/` | 54.28 % | 74.07 % | 47.36 % | 54.54 % |
 | `services/` | 87.5 % | 87.5 % | 91.66 % | 88.57 % |
 | `utils/` | 91.3 % | 67.85 % | 82.6 % | 92.5 % |
+
+`PanelPorRol.spec.jsx` (8 pruebas, nuevo) monta las rutas reales del panel (`RutaAdmin` + `AdminLayout` +
+`AdminEntidad`) y comprueba qué ve cada rol: el admin todo el menú y los botones Nuevo/Editar/Eliminar; el vendedor
+solo Órdenes y Productos, en modo lectura, y vuelve al panel si escribe la URL de Usuarios, Categorías, Reportes o
+crear producto; el cliente vuelve a la tienda. Por eso ahora también se miden `AdminLayout.jsx`, `AdminEntidad.jsx`
+y `entidades.jsx` (el total baja un poco porque entran archivos nuevos a la medición, no porque haya menos pruebas).
 
 Pruebas nuevas o reescritas: `db.spec.jsx` (GET/POST/PUT/DELETE contra la API simulada, errores, caché),
 `AuthProvider.spec.jsx` (login, 401, 409, persistencia tras recargar, token vencido, renovación, cierre ante 401),
