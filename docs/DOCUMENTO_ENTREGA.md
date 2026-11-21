@@ -13,7 +13,7 @@ Se integró la tienda **PawPets** de punta a punta:
 - **VS Code** configurado para levantar y depurar todo, y **documentación** completa para instalar, entender
   y defender el proyecto.
 
-Estado de las pruebas: **43/43** backend (29 unitarias + 14 de integración), **68/68** frontend, **65/65** casos de la API levantada,
+Estado de las pruebas: **45/45** backend (28 unitarias + 17 de integración), **68/68** frontend, **65/65** casos de la API levantada,
 flujos completos en el navegador con los 3 roles, **0 errores** en la consola y **0 errores de CORS**.
 
 ---
@@ -29,8 +29,8 @@ flujos completos en el navegador con los 3 roles, **0 errores** en la consola y 
 | `application.properties` | Puerto 8080, lectura de `.env`, URI de Mongo, JWT, CORS, ruta de Swagger | Configuración sin secretos en el código |
 | `.env.example` (nuevo), `.gitignore` | Plantilla de secretos; `.env` ignorado | No subir credenciales |
 | `model/` (5 clases) | Categoria, Producto, Usuario, Boleta, DetalleBoleta | Modelo de la Figura 1 |
-| `repository/` (4) | `MongoRepository` + consultas derivadas | Acceso a Atlas |
-| `service/` (5) | Reglas de negocio (ver `ARQUITECTURA.md`) | Lógica encapsulada y testeable |
+| `repository/` (4 + 2) | `MongoRepository` + consultas derivadas; `ProductoStockRepository(Impl)` descuenta y devuelve stock con una actualización condicional atómica | Acceso a Atlas; compras simultáneas sin sobreventa |
+| `service/` (6) | Reglas de negocio (ver `ARQUITECTURA.md`); `SecuenciaService` entrega ids con un contador atómico (`findAndModify` + `$inc`) | Lógica encapsulada y testeable; ninguna boleta se sobrescribe por id repetido |
 | `controller/` (5) | Endpoints CRUD `/api/v1` con anotaciones de Swagger | API REST documentada |
 | `dto/` (7) | Entradas validadas y salidas sin clave | Seguridad de los datos |
 | `security/` (2) | JWT HS256 (generar, verificar, renovar), roles, BCrypt, 401/403 en JSON | Autenticación y autorización |
@@ -115,7 +115,7 @@ flujos completos en el navegador con los 3 roles, **0 errores** en la consola y 
 
 | Requisito | Estado | Evidencia |
 |---|:-:|---|
-| Backend conectado a BD con lógica de negocio y modelos (IE3.1.1/3.1.2) | ✅ | `service/`, `model/`, 43 pruebas |
+| Backend conectado a BD con lógica de negocio y modelos (IE3.1.1/3.1.2) | ✅ | `service/`, `model/`, 45 pruebas; compras simultáneas sin sobreventa |
 | CRUD REST con Spring Boot en Swagger (IE3.2.1/3.2.3) | ✅ | `controller/`, Swagger (captura 30) |
 | Integración frontend–backend por API REST (IE3.2.2/3.2.4) | ✅ | `api.js`, `db.js`, Network sin errores |
 | Autenticación con roles y JWT: generación, verificación y renovación (IE3.3.1/3.3.4) | ✅ | `SecurityConfig`, `JwtService`, `/auth/refresh` |
@@ -162,7 +162,8 @@ flujos completos en el navegador con los 3 roles, **0 errores** en la consola y 
 
 | Prueba | Resultado |
 |---|---|
-| Backend `mvnw.cmd test` | ✅ **43/43**: 29 unitarias + 14 de integración; cobertura JaCoCo 82,1 % líneas (`docs/pruebas/resultado_pruebas_backend.txt`) |
+| Backend `mvnw.cmd test` | ✅ **45/45**: 28 unitarias + 17 de integración; cobertura JaCoCo 79,7 % líneas (`docs/pruebas/resultado_pruebas_backend.txt`) |
+| Compras simultáneas: 20 compras a la vez de un producto con 4 unidades (backend con base de prueba) | ✅ 4 pagadas, 16 rechazadas (409), stock final 0, boletas 1-4 sin repetir (`docs/pruebas/resultado_prueba_concurrencia.txt`) |
 | Backend compila y levanta (`spring-boot:run`) | ✅ `Started Application`; datos iniciales cargados |
 | API levantada: 65 casos (éxito y error por rol, 400/401/403/404/405/409, CORS, Swagger) | ✅ **65/65** (`docs/pruebas/resultado_pruebas_api.txt`) |
 | Frontend `npm test` | ✅ **68/68**, incluidas 8 pruebas del panel por rol (`PanelPorRol.spec.jsx`); cobertura de los archivos que cargan las pruebas: 88,2 % sentencias · 81,0 % ramas · 82,5 % funciones · 88,8 % líneas |
@@ -185,8 +186,6 @@ flujos completos en el navegador con los 3 roles, **0 errores** en la consola y 
 ## 7. Recomendaciones a futuro (no implementadas por estar fuera del alcance)
 
 - **Despliegue en la nube** (material 3.3.1 Azure y 3.3.2 AWS EC2): es referencial y no lo exige la pauta.
-- **Stock atómico** con una actualización condicional en MongoDB o una transacción, para compras simultáneas.
-- **Ids con secuencias atómicas** (o `ObjectId`) en lugar de máximo + 1.
 - **Token en cookie `HttpOnly`** y refresh token separado de larga duración, en vez de `localStorage`.
 - **Pruebas de integración** contra una base real (por ejemplo Testcontainers) y pruebas E2E del frontend.
 - **Paginación** en el catálogo y en las tablas del panel.
