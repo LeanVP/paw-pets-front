@@ -112,7 +112,7 @@ Otros comandos útiles (en la carpeta del backend):
 
 | Comando | Qué hace |
 |---|---|
-| `.\mvnw.cmd test` | Corre las 26 pruebas unitarias (no necesitan Atlas) |
+| `.\mvnw.cmd test` | Corre las 43 pruebas unitarias y de integración (no necesitan Atlas) y genera la cobertura en `target/site/jacoco/` |
 | `.\mvnw.cmd clean install` | Compila, prueba y genera `target/paw-pets-backend-0.0.1-SNAPSHOT.jar` |
 
 ---
@@ -129,7 +129,7 @@ npm run dev        # http://localhost:5173
 
 | Comando | Qué hace |
 |---|---|
-| `npm test` | 60 pruebas Jasmine + Karma (necesita Chrome) y reporte de cobertura en `coverage/` |
+| `npm test` | 68 pruebas Jasmine + Karma (necesita Chrome) y reporte de cobertura en `coverage/` |
 | `npm run lint` | Revisa el código con oxlint |
 | `npm run build` | Genera la versión de producción en `dist/` |
 
