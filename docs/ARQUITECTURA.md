@@ -210,7 +210,7 @@ Los controladores no tienen lógica: delegan al servicio (igual que `ProductosCo
 | `ErrorRespuesta.java` | Formato único `{estado, error, mensaje, campos}` |
 | `GlobalExceptionHandler.java` | `@RestControllerAdvice` (material 3.1.1): convierte cada excepción —incluidas las de `@Valid`, JSON mal formado, ids no numéricos, 404 de ruta y 405— en `ErrorRespuesta`. Lo inesperado es 500 sin detalles internos |
 
-### `src/test/java` — pruebas unitarias (JUnit 5 + Mockito, sin MongoDB)
+### `src/test/java` — pruebas unitarias y de integración (JUnit 5 + Mockito + MockMvc, sin MongoDB)
 
 | Archivo | Qué prueba |
 |---|---|
@@ -220,6 +220,7 @@ Los controladores no tienen lógica: delegan al servicio (igual que `ProductosCo
 | `JwtServiceTest.java` (4) | Token válido con sus claims; firma ajena rechazada; token vencido rechazado; clave corta |
 | `UsuarioServiceTest.java` (3) | Clave vacía al editar se mantiene; correo de otro usuario; clave cifrada al crear |
 | `CategoriaServiceTest.java` (3) | No elimina con productos; elimina sin productos; 404 |
+| `integracion/SeguridadApiIntegracionTest.java` (14) | **Integración** con MockMvc (controladores + Spring Security + JWT + CORS + validación, servicios simulados): rutas públicas; 401 sin token; 403 para cliente/vendedor; CRUD completo de productos, categorías y usuarios como admin; 409; vendedor ve órdenes pero no compra; renovación de token; token vencido, con otra clave o con el rol cambiado → 401; CORS |
 
 ---
 
@@ -324,9 +325,9 @@ Los controladores no tienen lógica: delegan al servicio (igual que `ProductosCo
 | `reportes.js` | `resumenVentas` (solo boletas pagadas) |
 | `roles.js` | `ROLES` y `ROLES_PANEL` |
 
-#### `test/` (Jasmine + Karma, 60 pruebas)
+#### `test/` (Jasmine + Karma, 68 pruebas)
 `ayudas.jsx` (render con contextos simulados, `simularApi` para `fetch`, `tokenDePrueba`), y specs de
-`db`, `AuthProvider` (sesión JWT), `Login`, `Registro`, `RutaAdmin` (roles), `Header`, `Carrito`,
+`db`, `AuthProvider` (sesión JWT), `Login`, `Registro`, `RutaAdmin` (roles), `PanelPorRol` (menú y modo lectura por rol), `Header`, `Carrito`,
 `CarritoProvider`, `Producto`, `ListaCategorias`, `Contacto`, `productos` y `validaciones`.
 
 ---
