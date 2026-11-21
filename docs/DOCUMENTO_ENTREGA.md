@@ -13,7 +13,7 @@ Se integró la tienda **PawPets** de punta a punta:
 - **VS Code** configurado para levantar y depurar todo, y **documentación** completa para instalar, entender
   y defender el proyecto.
 
-Estado de las pruebas: **26/26** backend, **60/60** frontend, **65/65** casos de la API levantada,
+Estado de las pruebas: **43/43** backend (29 unitarias + 14 de integración), **68/68** frontend, **65/65** casos de la API levantada,
 flujos completos en el navegador con los 3 roles, **0 errores** en la consola y **0 errores de CORS**.
 
 ---
@@ -37,7 +37,9 @@ flujos completos en el navegador con los 3 roles, **0 errores** en la consola y 
 | `config/` (3) | CORS, Swagger (Authorize), carga inicial de datos | Integración y datos de prueba |
 | `exception/` (6) | `@RestControllerAdvice` y excepciones por código HTTP | Errores uniformes |
 | `resources/data/*.json` (nuevo) | Datos iniciales (los del frontend + usuario vendedor) | Base con datos al primer arranque |
-| `ApplicationTests.java` → 6 clases de prueba | Se reemplazó la prueba que exigía conexión a Atlas por 26 pruebas unitarias | "Lógica testeada" (Anexo 1) |
+| `ApplicationTests.java` → 6 clases de prueba | Se reemplazó la prueba que exigía conexión a Atlas por pruebas unitarias de servicios y JWT | "Lógica testeada" (Anexo 1) |
+| `integracion/SeguridadApiIntegracionTest.java` (nuevo) | 14 pruebas de integración con MockMvc: controladores + Spring Security + JWT + CORS + validación, por rol | La evaluación pide "desarrollar pruebas de integración" |
+| `pom.xml` · JaCoCo (nuevo) | Reporte de cobertura en `target/site/jacoco/index.html` al correr `mvnw.cmd test` | Evidencia de la lógica testeada |
 
 ### Frontend (`paw-pets-frontend`)
 
@@ -113,7 +115,7 @@ flujos completos en el navegador con los 3 roles, **0 errores** en la consola y 
 
 | Requisito | Estado | Evidencia |
 |---|:-:|---|
-| Backend conectado a BD con lógica de negocio y modelos (IE3.1.1/3.1.2) | ✅ | `service/`, `model/`, 26 pruebas |
+| Backend conectado a BD con lógica de negocio y modelos (IE3.1.1/3.1.2) | ✅ | `service/`, `model/`, 43 pruebas |
 | CRUD REST con Spring Boot en Swagger (IE3.2.1/3.2.3) | ✅ | `controller/`, Swagger (captura 30) |
 | Integración frontend–backend por API REST (IE3.2.2/3.2.4) | ✅ | `api.js`, `db.js`, Network sin errores |
 | Autenticación con roles y JWT: generación, verificación y renovación (IE3.3.1/3.3.4) | ✅ | `SecurityConfig`, `JwtService`, `/auth/refresh` |
@@ -160,10 +162,10 @@ flujos completos en el navegador con los 3 roles, **0 errores** en la consola y 
 
 | Prueba | Resultado |
 |---|---|
-| Backend `mvnw.cmd test` | ✅ **26/26** (`docs/pruebas/resultado_pruebas_backend.txt`) |
+| Backend `mvnw.cmd test` | ✅ **43/43**: 29 unitarias + 14 de integración; cobertura JaCoCo 82,1 % líneas (`docs/pruebas/resultado_pruebas_backend.txt`) |
 | Backend compila y levanta (`spring-boot:run`) | ✅ `Started Application`; datos iniciales cargados |
 | API levantada: 65 casos (éxito y error por rol, 400/401/403/404/405/409, CORS, Swagger) | ✅ **65/65** (`docs/pruebas/resultado_pruebas_api.txt`) |
-| Frontend `npm test` | ✅ **60/60**; cobertura 90,7 % sentencias · 80,9 % ramas · 85,5 % funciones · 91,5 % líneas |
+| Frontend `npm test` | ✅ **68/68**, incluidas 8 pruebas del panel por rol (`PanelPorRol.spec.jsx`); cobertura de los archivos que cargan las pruebas: 88,2 % sentencias · 81,0 % ramas · 82,5 % funciones · 88,8 % líneas |
 | Frontend `npm run lint` / `npm run build` | ✅ sin avisos / compila |
 | Navegador: compra cliente (login → checkout → boleta), pago rechazado, F5, cambio de rol en localStorage, vendedor (lectura y bloqueo de rutas), admin (CRUD, 409, reportes, historial, perfil) | ✅ |
 | Pestaña Network | ✅ todas 200/201/204; preflight CORS 200 |
