@@ -127,8 +127,8 @@
     `{estado, error, mensaje, campos}`. El front muestra `mensaje` con `AlertaError`.
 14. **¿Por qué usaste DTO?** Para no exponer la clave y para no aceptar campos que el cliente no debe controlar
     (precios, total, rol en el registro).
-15. **¿Cómo pruebas el backend?** 43 pruebas (`mvnw.cmd test`), sin necesitar Atlas: 29 unitarias (JUnit 5 + Mockito)
-    de los servicios y de JWT, y 14 de **integración** con MockMvc que pasan por controladores, Spring Security,
+15. **¿Cómo pruebas el backend?** 45 pruebas (`mvnw.cmd test`), sin necesitar Atlas: 28 unitarias (JUnit 5 + Mockito)
+    de los servicios y de JWT, y 17 de **integración** con MockMvc que pasan por controladores, Spring Security,
     JWT, CORS y validación (401 sin token, 403 por rol, token vencido/manipulado, CRUD completo, 409). JaCoCo
     deja el reporte de cobertura en `target/site/jacoco/index.html`; además se probó cada endpoint levantado (65 casos de éxito y de error, ver
     `DOCUMENTO_ENTREGA.md`) y se puede repetir en Swagger o Postman.
@@ -139,9 +139,12 @@
     `.gitignore`; se sube solo `.env.example`.
 18. **¿Por qué una boleta no tiene PUT ni DELETE?** Una boleta emitida es un documento de venta: no debería
     modificarse. Por eso solo se crea y se consulta (si se llama a PUT responde 405).
-19. **¿Qué pasa si dos clientes compran el último producto al mismo tiempo?** Es una limitación conocida: la
-    validación de stock no es atómica. La mejora sería una actualización condicional atómica en Mongo
-    (`stock >= cantidad`) o una transacción.
+19. **¿Qué pasa si dos clientes compran el último producto al mismo tiempo?** Solo uno se lo lleva. El stock se
+    descuenta con una actualización condicional atómica de MongoDB ("si `stock >= cantidad`, réstale `cantidad`",
+    en `ProductoStockRepositoryImpl`); si otro cliente compró las últimas unidades un instante antes, no se descuenta,
+    se devuelve el stock de las otras líneas y se responde 409. El número de boleta sale de un contador atómico
+    (`SecuenciaService`, `findAndModify` + `$inc`), así dos compras nunca comparten id. Se probó con 20 compras
+    simultáneas de un producto con 4 unidades: 4 pagadas, 16 rechazadas, stock 0 y boletas 1 a 4.
 20. **¿Cómo se ejecuta todo en VS Code?** `paw-pets.code-workspace` + tarea "Levantar todo"; el backend se depura
     con la configuración "Depurar backend (Spring Boot)" y puntos de interrupción.
 
