@@ -45,7 +45,8 @@ USUARIO 1 ─ ─ ─ * BOLETA 1 ───── * DETALLE_BOLETA * ────
 - MongoDB no tiene `JOIN`: las relaciones se guardan como **ids**.
 - El detalle va **incrustado** porque siempre se lee junto con la boleta. Guarda una copia del nombre y del precio,
   así la boleta histórica no cambia si después se edita el producto.
-- El `id` es numérico (`@Id Integer`, se guarda como `_id`). El servicio asigna el siguiente: máximo actual + 1.
+- El `id` es numérico (`@Id Integer`, se guarda como `_id`). Lo entrega `SecuenciaService`: un contador por colección
+  (colección `contadores`) que MongoDB incrementa con `findAndModify` + `$inc`, en una sola operación atómica.
 
 ### Roles (Anexo 1)
 
@@ -145,10 +146,11 @@ Métodos extra derivados del nombre:
 
 | Archivo | Métodos propios |
 |---|---|
-| `CategoriaRepository.java` | `findTopByOrderByIdDesc()` (para el siguiente id) |
+| `CategoriaRepository.java` | `findTopByOrderByIdDesc()` (id más alto existente, punto de partida del contador de ids) |
 | `ProductoRepository.java` | `findTopByOrderByIdDesc()`, `existsByCategoriaId()` |
 | `UsuarioRepository.java` | `findTopByOrderByIdDesc()`, `findByCorreoIgnoreCase()`, `existsByCorreoIgnoreCase()` |
 | `BoletaRepository.java` | `findTopByOrderByIdDesc()`, `findByClienteIdOrderByIdAsc()` |
+| `ProductoStockRepository.java` + `Impl` | `descontarStock()` ("si `stock >= cantidad`, réstale" en una operación atómica con `MongoTemplate`) y `devolverStock()` |
 
 ### `service/` — lógica de negocio
 
@@ -158,7 +160,8 @@ Métodos extra derivados del nombre:
 | `ProductoService.java` | CRUD. La categoría debe existir; la oferta debe ser menor que el precio (400); conserva `destacado` si no viene |
 | `UsuarioService.java` | CRUD para el admin. Correo único (409); clave mínima de 6 caracteres cifrada con BCrypt; al editar, clave vacía = mantener; responde siempre `UsuarioResponse` (sin clave) |
 | `AuthService.java` | `login` (compara con el hash), `registrar` (siempre crea **cliente**), `refrescar` (token nuevo y datos actuales) |
-| `BoletaService.java` | Compra completa (ver recorrido) y consultas según rol: el cliente solo ve las suyas; una boleta ajena da 404 |
+| `BoletaService.java` | Compra completa (ver recorrido) y consultas según rol: el cliente solo ve las suyas; una boleta ajena da 404. El stock se descuenta de forma atómica; si otro cliente se llevó las últimas unidades, devuelve lo descontado y responde 409 |
+| `SecuenciaService.java` | Ids correlativos con un contador atómico en MongoDB (nunca se repiten aunque lleguen dos peticiones a la vez) |
 
 ### `controller/` — endpoints REST
 
@@ -214,13 +217,13 @@ Los controladores no tienen lógica: delegan al servicio (igual que `ProductosCo
 
 | Archivo | Qué prueba |
 |---|---|
-| `BoletaServiceTest.java` (7) | Precio con oferta, total y stock; líneas repetidas; pago rechazado sin descontar; stock insuficiente; producto inexistente; listado según rol; boleta ajena |
+| `BoletaServiceTest.java` (9) | Precio con oferta, total y stock; líneas repetidas; pago rechazado sin descontar; stock insuficiente; producto inexistente; listado según rol; boleta ajena; compra simultánea (devuelve el stock y da 409); números de boleta correlativos |
 | `ProductoServiceTest.java` (5) | Id siguiente y valores por defecto; categoría inexistente; oferta ≥ precio; `destacado` se conserva; 404 |
 | `AuthServiceTest.java` (4) | Login correcto con BCrypt; credenciales incorrectas; registro fuerza rol cliente; correo repetido |
 | `JwtServiceTest.java` (4) | Token válido con sus claims; firma ajena rechazada; token vencido rechazado; clave corta |
 | `UsuarioServiceTest.java` (3) | Clave vacía al editar se mantiene; correo de otro usuario; clave cifrada al crear |
 | `CategoriaServiceTest.java` (3) | No elimina con productos; elimina sin productos; 404 |
-| `integracion/SeguridadApiIntegracionTest.java` (14) | **Integración** con MockMvc (controladores + Spring Security + JWT + CORS + validación, servicios simulados): rutas públicas; 401 sin token; 403 para cliente/vendedor; CRUD completo de productos, categorías y usuarios como admin; 409; vendedor ve órdenes pero no compra; renovación de token; token vencido, con otra clave o con el rol cambiado → 401; CORS |
+| `integracion/SeguridadApiIntegracionTest.java` (17) | **Integración** con MockMvc (controladores + Spring Security + JWT + CORS + validación, servicios simulados): rutas públicas; 401 sin token; 403 para cliente/vendedor; CRUD completo de productos, categorías y usuarios como admin; 409; vendedor ve órdenes pero no compra; renovación de token; token vencido, con otra clave o con el rol cambiado → 401; CORS |
 
 ---
 
