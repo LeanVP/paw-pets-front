@@ -127,11 +127,14 @@
     `{estado, error, mensaje, campos}`. El front muestra `mensaje` con `AlertaError`.
 14. **¿Por qué usaste DTO?** Para no exponer la clave y para no aceptar campos que el cliente no debe controlar
     (precios, total, rol en el registro).
-15. **¿Cómo pruebas el backend?** 26 pruebas JUnit 5 + Mockito de los servicios y de JWT (`mvnw.cmd test`), sin
-    necesitar Atlas; además se probó cada endpoint levantado (65 casos de éxito y de error, ver
+15. **¿Cómo pruebas el backend?** 43 pruebas (`mvnw.cmd test`), sin necesitar Atlas: 29 unitarias (JUnit 5 + Mockito)
+    de los servicios y de JWT, y 14 de **integración** con MockMvc que pasan por controladores, Spring Security,
+    JWT, CORS y validación (401 sin token, 403 por rol, token vencido/manipulado, CRUD completo, 409). JaCoCo
+    deja el reporte de cobertura en `target/site/jacoco/index.html`; además se probó cada endpoint levantado (65 casos de éxito y de error, ver
     `DOCUMENTO_ENTREGA.md`) y se puede repetir en Swagger o Postman.
-16. **¿Cómo pruebas el frontend?** 60 pruebas Jasmine + Karma, con `fetch` simulado: sesión JWT, roles, CRUD de
-    `db.js`, formularios y carrito.
+16. **¿Cómo pruebas el frontend?** 68 pruebas Jasmine + Karma, con `fetch` simulado: sesión JWT, roles, CRUD de
+    `db.js`, formularios y carrito. `PanelPorRol.spec.jsx` comprueba qué ve cada rol: el admin todo el menú, el
+    vendedor solo Órdenes y Productos en modo lectura, y el cliente vuelve a la tienda.
 17. **¿Por qué el `.env` no está en GitHub?** Porque tiene la contraseña de Atlas y la clave del JWT. Está en
     `.gitignore`; se sube solo `.env.example`.
 18. **¿Por qué una boleta no tiene PUT ni DELETE?** Una boleta emitida es un documento de venta: no debería
