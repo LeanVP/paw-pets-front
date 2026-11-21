@@ -12,7 +12,7 @@ Necesita el backend encendido en `http://localhost:8080`.
 copy .env.example .env   # VITE_API_URL=http://localhost:8080/api/v1
 npm install
 npm run dev              # sitio en http://localhost:5173
-npm test                 # 60 pruebas Jasmine + Karma (necesita Google Chrome)
+npm test                 # 68 pruebas Jasmine + Karma (necesita Google Chrome)
 npm run lint
 npm run build
 ```
@@ -35,7 +35,7 @@ Para probar un **pago rechazado**, en el checkout elige "Tarjeta sin fondos (sim
 | `src/layouts/` | `TiendaLayout` y `AdminLayout` (menú lateral por rol) |
 | `src/pages/` | Vistas de la tienda; `src/pages/admin/`: vistas del panel |
 | `src/utils/` | Validaciones, formato de precios, productos, reportes y roles |
-| `src/test/` | 60 pruebas (`*.spec.jsx`) con `fetch` simulado |
+| `src/test/` | 68 pruebas (`*.spec.jsx`) con `fetch` simulado |
 
 ## Roles en el frontend
 
